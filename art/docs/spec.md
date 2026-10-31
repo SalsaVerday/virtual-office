@@ -208,3 +208,61 @@ New Tileset → Based on tileset image:
 | v27 | skin2 | hair_blond | sq_d | shadow |
 | v28 | skin3 | wood_md | sq_e | wood_dk |
 | v29 | skin4 | hair_brown | green_md | sq_b_dk |
+
+## App icons, web icons, join splash, avatar picker (batch 2)
+Built by `python3 tools/build_extras.py` (run it after `build_art.py`). It uses only the locked palette, with one exception listed below. The mark is a top-down room with a desk and a small avatar, drawn on a 16x16 grid and scaled up by whole numbers. Background is `sq_c` #4f9a8e. There's no text and no third-party branding.
+
+| file | size | purpose | suggested repo location |
+|---|---|---|---|
+| teams/color.png | 192x192 | Teams `icons.color`. Full-bleed square, no rounded corners, no border. The mark is 96x96, centred (the 96 balance area, inside the 120x120 safe area). | Teams app package (next to manifest.json), **not** public/ |
+| teams/outline.png | 32x32 | Teams `icons.outline`. **#FFFFFF on transparent.** | Teams app package |
+| teams/color32x32.png | 32x32 | Optional `icons.color32x32` (full colour, transparent background, mark at 2x) | Teams app package |
+| web/favicon.ico | 16, 32, 48 | Browser favicon (3 frames, each drawn at its own size from the 16 px grid) | frontend/public/ |
+| web/favicon-16.png / favicon-32.png | 16x16 / 32x32 | PNG favicons | frontend/public/ |
+| web/apple-touch-icon.png | 180x180 | iOS home screen icon (mark at 8x = 128, on a full background) | frontend/public/ |
+| web/icon-192.png / icon-512.png | 192 / 512 | Web manifest icons. The mark is 50% / 62.5% of the edge, which fits the maskable safe zone. | frontend/public/ |
+| web/site.webmanifest | – | Manifest snippet | frontend/public/ |
+| web/join_splash.png | 320x180 | Join/loading illustration at 1x | frontend/public/assets/ui/ |
+| web/join_splash@4x.png | 1280x720 | Same image, nearest-neighbour 4x | frontend/public/assets/ui/ |
+| ui/avatar_picker.png | 480x560 | All 30 variants: idle facing down at 2x, with a v00–v29 label under each | frontend/public/assets/ui/ |
+| ui/avatar_picker.json | – | Cell map for avatar_picker.png | frontend/public/assets/ui/ |
+
+**Palette exception:** `teams/outline.png` is pure #FFFFFF on alpha 0, because the Teams manifest requires a white outline icon on a transparent background. `tools/audit.py` allows #FFFFFF for that file only. Every other file must use palette colours only.
+
+**Teams manifest snippet:**
+```json
+"icons": { "color": "color.png", "outline": "outline.png", "color32x32": "color32x32.png" }
+```
+
+**HTML `<head>` tags:**
+```html
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#4f9a8e">
+```
+`site.webmanifest` lists `/icon-192.png` and `/icon-512.png` (`purpose: "any maskable"`), with theme #4f9a8e and background #2b2135.
+
+### Join splash safe area
+The scene is built from the real tiles and avatars:
+- Wall with windows across the top.
+- Two desks with working avatars and a tall plant on the right.
+- A lounge strip with a sofa, plants, and two chatting avatars along the bottom.
+
+The open area is a calm cream tile floor with no props. Keep the title and Join button inside this area:
+- **1x:** x 8–184, y 44–128 (176x84 px). The top-left corner is (8,44).
+- **4x:** x 32–736, y 176–512 (704x336 px).
+
+Render the text at integer scale over it. The image contains no text. For other aspect ratios, scale by a whole number, centre it, and letterbox with #2b2135.
+
+### Avatar picker
+- The grid is 6 columns x 5 rows, with each cell 80x112. Cell i sits at (i%6*80, floor(i/6)*112).
+- Inside each cell, the sprite is at +8,+2 (64x96, frame 0 at 2x) and the label is at +34,+100 (pixel font, `outline` colour).
+- `avatar_picker.json` gives the following for each cell:
+  - `id`
+  - `sheet` (for example `assets/sprites/avatar_v00.png`)
+  - the cell's `x, y, w, h`
+  - a `sprite` sub-rect
+- A live picker could skip this image and render each `avatar_<id>` spritesheet directly (frame 0, or the walk-down anim on hover), which stays in sync automatically when variants are added. The image is a static fallback and preview.

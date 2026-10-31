@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createAuthProvider } from './auth'
-import { roomFromLocation } from './config'
+import { roomFromLocation, sanitizeVariant } from './config'
 import { OfficeSession } from './net/session'
 import { AdminScreen } from './ui/AdminScreen'
 import { JoinScreen, type JoinInput } from './ui/JoinScreen'
@@ -19,9 +19,17 @@ export function App() {
   useEffect(() => {
     if (adminRoute) return
     void auth.getSession().then((user) => {
-      if (!user) return
-      setInitialName(user.displayName)
-      setInitialVariant(user.variant)
+      if (user) {
+        setInitialName(user.displayName)
+        setInitialVariant(user.variant)
+        return
+      }
+      try {
+        const saved = localStorage.getItem('vo.variant')
+        if (saved) setInitialVariant(sanitizeVariant(saved))
+      } catch {
+        // Storage can be blocked. The default avatar still joins.
+      }
     })
   }, [auth, adminRoute])
 
