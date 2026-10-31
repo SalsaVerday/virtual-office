@@ -36,6 +36,7 @@ export default defineConfig({
       LIVEKIT_API_KEY: process.env.LIVEKIT_API_KEY ?? 'devkey',
       LIVEKIT_API_SECRET: process.env.LIVEKIT_API_SECRET ?? 'secret',
       AUTH_PROVIDER: process.env.AUTH_PROVIDER ?? 'dev',
+      VITE_ADMIN: process.env.VITE_ADMIN ?? 'true',
     },
   },
 })

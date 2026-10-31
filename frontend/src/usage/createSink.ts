@@ -1,3 +1,4 @@
+import { preferRemoteEvents } from './adminStats'
 import { LocalEventSink } from './localSink'
 import { SupabaseEventSink } from './supabaseSink'
 import type { UsageEvent, UsageSink } from './types'
@@ -15,6 +16,16 @@ class FanoutSink implements UsageSink {
 
   list(): UsageEvent[] {
     return this.local.list()
+  }
+
+  async load(): Promise<UsageEvent[]> {
+    try {
+      const remote = await this.remote.load()
+      return preferRemoteEvents(remote, this.local.list())
+    } catch (error) {
+      console.warn('Supabase usage read failed; using the local sink', error)
+      return preferRemoteEvents(null, this.local.list())
+    }
   }
 
   exportJson(): string {

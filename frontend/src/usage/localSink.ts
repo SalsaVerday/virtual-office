@@ -45,6 +45,10 @@ export class LocalEventSink implements UsageSink {
     }
   }
 
+  async load(): Promise<UsageEvent[]> {
+    return this.list()
+  }
+
   list(): UsageEvent[] {
     if (this.memory) return this.memory.map((event) => ({ ...event, props: { ...event.props } }))
     const store = readStore()

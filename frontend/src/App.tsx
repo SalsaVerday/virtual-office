@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createAuthProvider } from './auth'
 import { roomFromLocation } from './config'
 import { OfficeSession } from './net/session'
+import { AdminScreen } from './ui/AdminScreen'
 import { JoinScreen, type JoinInput } from './ui/JoinScreen'
 import { OfficeScreen } from './ui/OfficeScreen'
 
@@ -13,14 +14,18 @@ export function App() {
   const [initialName, setInitialName] = useState('')
   const [initialVariant, setInitialVariant] = useState('v00')
   const initialRoom = roomFromLocation(window.location.search)
+  const adminRoute = window.location.pathname === '/admin' || window.location.pathname === '/admin/'
 
   useEffect(() => {
+    if (adminRoute) return
     void auth.getSession().then((user) => {
       if (!user) return
       setInitialName(user.displayName)
       setInitialVariant(user.variant)
     })
-  }, [auth])
+  }, [auth, adminRoute])
+
+  if (adminRoute) return <AdminScreen />
 
   async function join(input: JoinInput) {
     const audio = new AudioContext()

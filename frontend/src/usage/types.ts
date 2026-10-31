@@ -29,7 +29,13 @@ export type UsageEvent = {
 
 export interface UsageSink {
   emit(event: UsageEvent): void
+  /** Events currently in memory or localStorage. Synchronous, this browser only. */
   list(): UsageEvent[]
+  /**
+   * Events for the admin view. Local today. A Supabase-backed sink reads
+   * `usage_events` and falls back to {@link list} when that read is empty or fails.
+   */
+  load(): Promise<UsageEvent[]>
   exportJson(): string
   exportCsv(): string
 }
