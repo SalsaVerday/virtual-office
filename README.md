@@ -244,7 +244,7 @@ Live getters. Read them again each time; do not cache the object you got from `.
 ## What is only a seam
 
 - **Microsoft sign-in.** `createAuthProvider()` returns dev name entry, or the Supabase Azure provider when `VITE_AUTH_PROVIDER=azure` (`supabase` is an alias). The token route enforces the same choice with `AUTH_PROVIDER`. See `docs/auth-plan.md`. No Azure app is wired up in this repo.
-- **Teams.** Not started. Placeholder icons sit in `teams/` and are not part of the website. There is no Teams manifest yet. Slack is out. A later tab or bot should deep-link to `/?room=` (and `?entry=teams_tab` or `teams_link`) and can call `setStatus(status, 'teams')`. It should not replace LiveKit audio.
+- **Teams.** `teams/manifest.json` is a sideload package for a **Join standup** tab (`/?zone=standup&entry=teams_tab`). Build the zip with `./scripts/package-teams.sh`. See `docs/teams-sideload.md`. Slack is out. A later bot can call `setStatus(status, 'teams')`. It should not replace LiveKit audio.
 - **Admin view.** `/admin` is not in the office HUD. `VITE_ADMIN=true` opens it in dev and staging. Azure sign-in will pass `users.is_admin` instead; a known false denies the page even if the flag is set. It reads the local event sink today, through the same sink interface that reads `usage_events` once Supabase is configured.
 
 ## Usage events

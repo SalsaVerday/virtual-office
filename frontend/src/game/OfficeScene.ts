@@ -5,6 +5,7 @@ import { MOVE_SPEED } from '../config'
 import type { OfficeSession } from '../net/session'
 import type { Direction } from '../types'
 import { zonesFromTiled, type TiledZoneObject } from './zones'
+import { zoneTarget } from './zoneLink'
 import { findPath } from './pathfinding'
 import { desiredVelocity, steerToward } from './movement'
 import {
@@ -131,6 +132,8 @@ export class OfficeScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels)
     this.physics.add.collider(this.player, collision)
     playAvatar(this.player, this.session.variant, 'down', false)
+    const linked = zoneTarget(window.location.search, zones)
+    if (linked) this.teleport(linked.x, linked.y)
 
     this.label = makeNameTag(this, this.session.displayName)
     this.icon = this.add.sprite(spawn.x, spawn.y - 46, 'status', 0).setOrigin(0.5, 0.5)
