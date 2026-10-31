@@ -208,3 +208,48 @@ input {
 .roster li { display: flex; flex-direction: column; font-size: 13px; }
 .who { display: inline-flex; align-items: center; gap: 6px; }
 .peer-meta, .roster em { color: #b3a1a3; font-style: normal; font-size: 11px; }
+
+.admin {
+  min-height: 100%;
+  padding: 32px 16px 64px;
+  background:
+    radial-gradient(circle at top, #3a2c40, transparent 55%),
+    #1c1722;
+}
+
+.admin-card {
+  width: min(880px, 100%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-card h1 { margin: 0; font-size: 28px; }
+.admin-card h2 { margin: 8px 0 0; font-size: 16px; }
+.admin-back { color: #b3a1a3; font-size: 13px; }
+
+.admin-card table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #2b2135;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.admin-card th,
+.admin-card td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid #4a3f55;
+}
+
+.admin-card th {
+  color: #b3a1a3;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 650;
+}
+
+.admin-card code { color: #f4ead6; }

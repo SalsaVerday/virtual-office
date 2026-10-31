@@ -35,5 +35,5 @@ The exception accepts a body identity that starts with `dev:` when there is no b
 ## What is not in this step
 
 - No Teams tab.
-- No admin UI. `users.is_admin` is in the migration for later, and clients cannot grant it to themselves.
+- `/admin` is a dev-gated view (`VITE_ADMIN=true`) until Azure sign-in can pass `users.is_admin`. Clients still cannot grant that column to themselves. The page is not linked from the office HUD.
 - The route does not call Supabase over the network. Verification is local HMAC. When Supabase projects move off the legacy JWT secret onto asymmetric signing keys, swap `verifySupabaseJwt` for a JWKS check against `${SUPABASE_URL}/auth/v1/.well-known/jwks.json`. Fail closed if the keys cannot be loaded.

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { eventsFromSupabaseRows } from './adminStats'
 import type { UsageEvent } from './types'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -15,6 +16,22 @@ export class SupabaseEventSink {
     private readonly url: string,
     private readonly anonKey: string,
   ) {}
+
+  /**
+   * Admin read of `usage_events`. RLS still applies: a user sees their own rows,
+   * and `users.is_admin` can see everyone's. Dev identities never get this far
+   * on the write path; an empty result falls back to the local sink.
+   */
+  async load(): Promise<UsageEvent[]> {
+    const supabase = await this.client()
+    const { data, error } = await supabase
+      .from('usage_events')
+      .select('name, user_id, session_id, props, ts')
+      .order('ts', { ascending: true })
+      .limit(5000)
+    if (error) throw error
+    return eventsFromSupabaseRows(data ?? [])
+  }
 
   persist(event: UsageEvent): void {
     if (!UUID_RE.test(event.user_id) || !UUID_RE.test(event.session_id)) return

@@ -237,7 +237,7 @@ Live getters. Read them again each time; do not cache the object you got from `.
 
 - **Microsoft sign-in.** `createAuthProvider()` returns dev name entry, or the Supabase Azure provider when `VITE_AUTH_PROVIDER=azure` (`supabase` is an alias). The token route enforces the same choice with `AUTH_PROVIDER`. See `docs/auth-plan.md`. No Azure app is wired up in this repo.
 - **Teams.** Not started. Slack is out. A later tab or bot should deep-link to `/?room=` (and `?entry=teams_tab` or `teams_link`) and can call `setStatus(status, 'teams')`. It should not replace LiveKit audio.
-- **Admin view.** The migration has `users.is_admin` and read policies for it. There is no admin UI.
+- **Admin view.** `/admin` is not in the office HUD. `VITE_ADMIN=true` opens it in dev and staging. Azure sign-in will pass `users.is_admin` instead; a known false denies the page even if the flag is set. It reads the local event sink today, through the same sink interface that reads `usage_events` once Supabase is configured.
 
 ## Usage events
 
