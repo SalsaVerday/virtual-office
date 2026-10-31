@@ -7,6 +7,8 @@
  *   1. The page HTML loads and /api/health answers.
  *   2. POST /api/token with no identity and no session does not return a token.
  *   3. POST /api/token with a dev: identity returns a token (dev mode, or staging ALLOW_DEV_LOGIN).
+ *      When DEMO_PASSCODE is set, that value is sent and never printed. Demo mode
+ *      checks it and ignores the dev: identity.
  *   4. Two browsers join one room and each sees the other's position.
  *   5. The page sink recorded join_succeeded.
  *   6. If SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set, usage_events is readable.
@@ -25,6 +27,8 @@ if (!base) {
 
 const room = `smoke-${Date.now().toString(36)}`
 const failures = []
+/** Server-only. Included in the token body when set. Never printed. */
+const demoPasscode = process.env.DEMO_PASSCODE?.trim() ?? ''
 
 function check(name, ok, detail = '') {
   if (ok) {
@@ -56,19 +60,21 @@ async function main() {
     `status ${closed.status}`,
   )
 
+  const openedPayload = {
+    identity: 'dev:smoke-staging',
+    name: 'Smoke',
+    room,
+    variant: 'v00',
+  }
+  if (demoPasscode) openedPayload.passcode = demoPasscode
   const opened = await fetch(`${base}/api/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      identity: 'dev:smoke-staging',
-      name: 'Smoke',
-      room,
-      variant: 'v00',
-    }),
+    body: JSON.stringify(openedPayload),
   })
   const openedBody = await opened.json().catch(() => ({}))
   check(
-    'token works with dev login',
+    'token works for the configured sign-in',
     opened.status === 200 && typeof openedBody.token === 'string' && openedBody.token.length > 0,
     `status ${opened.status} ${openedBody.error || ''}`,
   )
@@ -91,6 +97,13 @@ async function main() {
         await page.goto(`${base}/?room=${encodeURIComponent(room)}`, { waitUntil: 'domcontentloaded' })
         await page.getByTestId('display-name').fill(name)
         await page.getByTestId('room-name').fill(room)
+        const passcodeField = page.getByTestId('passcode-input')
+        if ((await passcodeField.count()) > 0) {
+          if (!demoPasscode) {
+            throw new Error('demo join form is showing. Set DEMO_PASSCODE. The value is not printed.')
+          }
+          await passcodeField.fill(demoPasscode)
+        }
         await page.getByTestId('join').click()
         await page.waitForFunction(() => window.__qa?.ready === true, null, { timeout: 45_000 })
       }),

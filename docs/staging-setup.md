@@ -6,6 +6,67 @@ Do not put secrets in git. Names below are the env var names. Values are created
 
 Create **two** LiveKit Cloud projects and **two** Supabase projects if production and staging must not share rooms or rows. The steps are the same for each. Preview/staging values go on the Vercel **Preview** scope. Production values go on **Production**.
 
+The numbered order below is the Entra path. Until the MVP pitch, use **Demo (no Entra)** instead and skip that order.
+
+## Demo (no Entra)
+
+Staging and the demo run on personal LiveKit Cloud, Supabase, and Vercel accounts. There is no Entra sign-in yet.
+
+Skip step 1 (the Entra app registration). Skip the Supabase Azure provider and the tenant access-token hook. Leave `AUTH_PROVIDER=azure` in the code. Turning it on later is configuration: set `AUTH_PROVIDER=azure` and `VITE_AUTH_PROVIDER=azure`, then follow the Entra path.
+
+**QA hooks.** Preview deployments, including a demo preview, still run `npm run build:staging`, so `window.__qa` is present and `scripts/smoke-staging.mjs` can drive two browsers. Production runs `npm run build`. `qaHooksEnabled` returns false when `MODE` is `production`, before it reads `VITE_QA_HOOKS`, so hooks stay off on Production even if that variable is set. Demo auth does not change this split. Use a **Preview** URL for the pitch when you want the smoke script. Use **Production** when that URL must not expose `window.__qa`.
+
+### Values the demo needs
+
+| Value | Variable | Where it goes | Scope |
+| --- | --- | --- | --- |
+| LiveKit WebSocket URL | `LIVEKIT_URL` | Vercel | Preview, and Production if the pitch URL is the production domain |
+| LiveKit API key | `LIVEKIT_API_KEY` | Vercel | Same scope as the URL |
+| LiveKit API secret | `LIVEKIT_API_SECRET` | Vercel. 32+ characters. Not the dev secret `secret` | Same scope |
+| Supabase project URL | `SUPABASE_URL` and `VITE_SUPABASE_URL` (the same value) | Vercel. The browser sink reads the `VITE_` copy | Same scope |
+| Supabase anon key | `VITE_SUPABASE_ANON_KEY` | Vercel. Public by design. Usage inserts use it | Same scope |
+| Supabase JWT secret | `SUPABASE_JWT_SECRET` | Not used while `AUTH_PROVIDER=demo`. Set it only when you switch to `azure` | — |
+| Database URI | `SUPABASE_DB_URL` | Shell only, for `./scripts/migrate.sh`. Not a Vercel variable. Contains the database password | Your laptop or CI |
+| Shared passcode | `DEMO_PASSCODE` | Vercel, server only. Never `VITE_`. Empty or unset: `/api/token` returns 503 `demo_passcode_unconfigured` and no token | Same scope as LiveKit |
+| Vercel project | — | [vercel.com](https://vercel.com) → Add New → Project → import this GitHub repo. **Settings → General → Root Directory:** `frontend` | Put the variables on **Preview**, **Production**, or both, matching the URL you will open |
+
+`vercel.json` already selects the build: Preview runs `npm run build:staging` (QA hooks on). Production runs `npm run build` (QA hooks off).
+
+### Also required (not in the list above)
+
+- `AUTH_PROVIDER=demo` on the same Vercel scope. This is the gate. The client flag does not check the passcode.
+- `VITE_AUTH_PROVIDER=demo` on the same scope. This only shows the passcode field. It must not contain the passcode. Do not create `VITE_DEMO_PASSCODE` (the build refuses it).
+- `FRONTEND_ORIGIN` on the same scope. Set it to the deployment origin after the first deploy (comma-separate if there are several), then redeploy.
+- `VITE_ADMIN=true` only if this URL should open `/admin`. Leave it unset otherwise.
+- `SUPABASE_SERVICE_ROLE_KEY` only in the shell, and only if the smoke script should poll `usage_events`. The app does not need it. Never `VITE_`.
+
+### Not required for this path
+
+- `AZURE_TENANT_ID`, the Azure client id, and the Azure client secret.
+- The Supabase Azure provider and the custom access-token hook.
+- `ALLOW_DEV_LOGIN`. Demo mode does not honor it.
+- `SUPABASE_JWT_SECRET` (see the table).
+- A Vercel token. The GitHub integration deploys on push and does not need one. A token is only for the Vercel CLI or the Vercel API.
+
+One LiveKit project and one Supabase project are enough for the pitch. Split them later if staging and production must not share rooms or rows.
+
+Then, from the repo root, with `SUPABASE_DB_URL` set in the shell and not echoed:
+
+```bash
+./scripts/migrate.sh --dry-run
+./scripts/migrate.sh
+```
+
+Smoke (the passcode is read from the environment and is not printed):
+
+```bash
+DEMO_PASSCODE='<the same value as Vercel>' \
+SMOKE_BASE_URL=https://<host> \
+node scripts/smoke-staging.mjs
+```
+
+The fail-closed check posts an empty body and must not receive a token. The success check sends `DEMO_PASSCODE` only when that variable is set. On a demo deployment, set it to the same value as Vercel or the success check fails with `bad_passcode`.
+
 ## Order
 
 1. Azure app registration (one tenant). The client id and secret go in Supabase, not in this repo and not in a `VITE_` variable.

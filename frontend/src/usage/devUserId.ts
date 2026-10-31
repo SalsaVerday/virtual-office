@@ -7,6 +7,16 @@ export const DEV_USAGE_NAMESPACE = '3f1a9c2e-7b44-4e1a-9d60-1c8e5a0b7f22'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+/**
+ * LiveKit identity for AUTH_PROVIDER=demo. UUIDv5 of the display name under
+ * DEV_USAGE_NAMESPACE, so usage_events.user_id is already a uuid.
+ * The same name always maps to the same id. The passcode is not an input.
+ */
+export async function demoUserId(displayName: string): Promise<string> {
+  const name = displayName.trim().replace(/\s+/g, ' ').slice(0, 24).toLowerCase()
+  return uuidV5(`demo:${name}`, DEV_USAGE_NAMESPACE)
+}
+
 /** LiveKit identity stays `dev:…`. Usage rows use this uuid so they fit `users.id`. */
 export async function usageUserId(identity: string): Promise<string> {
   if (UUID_RE.test(identity)) return identity.toLowerCase()
