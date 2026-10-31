@@ -275,4 +275,6 @@ npm run typecheck   # frontend and api/
 npm run lint        # same checks as typecheck (no separate eslint config)
 npm run e2e -w frontend
 npm run load -w frontend   # 30-client load test. Needs ./scripts/run-livekit.sh. See docs/load-test-phase2.md
+./scripts/migrate.sh --dry-run    # list SQL migrations. See docs/staging-setup.md
+SMOKE_BASE_URL=http://127.0.0.1:5173 node scripts/smoke-staging.mjs
 ```

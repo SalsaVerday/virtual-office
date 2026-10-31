@@ -9,6 +9,11 @@
     "build": "npm run build -w frontend",
     "test": "npm run test -w frontend",
     "lint": "npm run lint -w frontend",
-    "typecheck": "npm run typecheck -w frontend"
+    "typecheck": "npm run typecheck -w frontend",
+    "migrate": "bash scripts/migrate.sh",
+    "smoke:staging": "node scripts/smoke-staging.mjs"
+  },
+  "devDependencies": {
+    "pg": "^8.23.1"
   }
 }
