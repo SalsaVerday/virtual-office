@@ -75,7 +75,9 @@ async function waitGain(page: Page, name: string, min: number, max: number) {
   await page.waitForFunction(
     ({ name, min, max }) => {
       const sub = window.__qa?.subscriptions.find((entry) => entry.name === name)
-      if (!sub?.subscribed || sub.appliedGain == null) return false
+      if (!sub) return false
+      if (max <= 0.05 && !sub.subscribed) return true
+      if (!sub.subscribed || sub.appliedGain == null) return false
       return sub.gain >= min && sub.gain <= max && sub.appliedGain >= min && sub.appliedGain <= max
     },
     { name, min, max },

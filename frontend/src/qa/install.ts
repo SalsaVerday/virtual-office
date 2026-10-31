@@ -51,8 +51,23 @@ export function installQaHooks(session: OfficeSession, scene: SceneApi): void {
     exportEvents(format: 'json' | 'csv') {
       return session.exportEvents(format)
     },
+    get load() {
+      return session.loadSnapshot()
+    },
+    beginSample() {
+      session.beginSample()
+    },
+    endSample() {
+      return session.endSample()
+    },
+    sampleTransport() {
+      return session.sampleTransport()
+    },
     worldToScreen(x: number, y: number) {
       return scene.worldToScreen(x, y)
+    },
+    setRunning(running: boolean) {
+      scene.setRunning(running)
     },
   }
   window.__qa = api

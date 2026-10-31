@@ -1,10 +1,18 @@
+import type { LoadSnapshot, SampleWindow } from '../net/loadProbe'
+import type { TransportSnapshot } from '../net/transportSample'
 import type { PresenceStatus } from '../types'
 import type { StatusSource, UsageEvent } from '../usage/types'
+
+export type QaLoadSnapshot = LoadSnapshot
+export type QaSampleWindow = SampleWindow
+export type QaTransport = TransportSnapshot
 
 export type SceneApi = {
   getPosition(): { x: number; y: number }
   teleport(x: number, y: number): void
   worldToScreen(x: number, y: number): { x: number; y: number }
+  /** Pause or resume the Phaser loop. The load test pauses rendering while the rest of the clients join. */
+  setRunning(running: boolean): void
 }
 
 export type QaParticipant = {
@@ -55,5 +63,12 @@ export type QaHooks = {
   knocks: QaKnocks
   events: UsageEvent[]
   exportEvents: (format: 'json' | 'csv') => string
+  /** Join timing and position counters. Live; read it again each time. */
+  load: QaLoadSnapshot
+  beginSample: () => void
+  endSample: () => QaSampleWindow
+  sampleTransport: () => Promise<QaTransport>
+  /** Pause or resume the map loop. LiveKit stays connected either way. */
+  setRunning: (running: boolean) => void
   worldToScreen: (x: number, y: number) => { x: number; y: number }
 }

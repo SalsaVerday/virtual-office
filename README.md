@@ -94,7 +94,7 @@ Missing `LIVEKIT_URL`, `LIVEKIT_API_KEY`, or `LIVEKIT_API_SECRET` makes `/api/to
 
 - **WASD** or arrow keys move. **Click** the floor to pathfind around the collision layer.
 - Your avatar is one of `avatar_v00`–`avatar_v29` (the color picker). A name tag and a status icon sit above the head.
-- **Proximity.** Full volume within 96px (3 tiles). Volume eases to silence at 288px (9 tiles). Past that, the gain is 0.
+- **Proximity.** Full volume within 96px (3 tiles). Volume eases to silence at 288px (9 tiles). Past that, the gain is 0 and the client drops the microphone subscription after a 750ms grace period, so a quiet room does not keep every track open. Dev and staging builds accept `?subscribe=all` to restore the old subscribe-to-everyone behavior for the load-test baseline. Production ignores that flag.
 - **Focus.** The Focus control stops proximity audio in both directions. Someone who walks up sees a knock prompt instead of hearing you. Let them in and normal proximity applies for the rest of the session. Ignore dismisses the prompt and leaves audio closed. A meeting room still connects without a knock: walking in is the join.
 - **Away.** Changes the icon. After 3 minutes without input, or 20 seconds in a hidden tab, Online becomes Away on its own. Focus is left alone, and an Away you picked yourself stays until you change it. Coming back clears an automatic Away. Status is published on the position packets and as LiveKit participant attributes (`status`, `variant`).
 - **Mute** stops your microphone. It does not change how you hear others.
@@ -266,4 +266,5 @@ npm test            # unit tests (zones, gain, pathfinding, QA flag, events, tok
 npm run typecheck   # frontend and api/
 npm run lint        # same checks as typecheck (no separate eslint config)
 npm run e2e -w frontend
+npm run load -w frontend   # 30-client load test. Needs ./scripts/run-livekit.sh. See docs/load-test-phase2.md
 ```

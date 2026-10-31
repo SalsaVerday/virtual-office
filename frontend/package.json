@@ -10,7 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.api.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.api.json --noEmit",
     "test": "vitest run",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "load": "playwright test -c load/playwright.config.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.81.1",
