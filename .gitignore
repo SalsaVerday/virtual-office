@@ -8,6 +8,7 @@ frontend/playwright-report/
 frontend/blob-report/
 frontend/playwright/.cache/
 coverage/
+teams/dist/
 *.tsbuildinfo
 
 # Secrets stay in the environment. Only *.env.example is committed.
