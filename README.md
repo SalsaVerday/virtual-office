@@ -97,7 +97,7 @@ Missing `LIVEKIT_URL`, `LIVEKIT_API_KEY`, or `LIVEKIT_API_SECRET` makes `/api/to
 - **Proximity.** Full volume within 96px (3 tiles). Volume eases to silence at 288px (9 tiles). Past that, the gain is 0 and the client drops the microphone subscription after a 750ms grace period, so a quiet room does not keep every track open. Dev and staging builds accept `?subscribe=all` to restore the old subscribe-to-everyone behavior for the load-test baseline. Production ignores that flag.
 - **Focus.** The Focus control stops proximity audio in both directions. Someone who walks up sees a knock prompt instead of hearing you. Let them in and normal proximity applies for the rest of the session. Ignore dismisses the prompt and leaves audio closed. A meeting room still connects without a knock: walking in is the join.
 - **Away.** Changes the icon. After 3 minutes without input, or 20 seconds in a hidden tab, Online becomes Away on its own. Focus is left alone, and an Away you picked yourself stays until you change it. Coming back clears an automatic Away. Status is published on the position packets and as LiveKit participant attributes (`status`, `variant`).
-- **Mute** stops your microphone. It does not change how you hear others.
+- **Mute.** The microphone is off when you join. Unmute publishes it. Mute stops it again. It does not change how you hear others. Settings remembers the microphone and speaker.
 
 Squad areas, the lounge, and the standup circle are open space. Only `meeting` zones are private.
 

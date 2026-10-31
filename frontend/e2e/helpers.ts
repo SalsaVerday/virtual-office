@@ -29,6 +29,9 @@ export async function join(page: Page, room: string, name: string, variant: stri
   await page.getByTestId(`variant-${variant}`).click()
   await page.getByTestId('join').click()
   await page.waitForFunction(() => window.__qa?.ready === true, null, { timeout: 30_000 })
+  if ((await page.getByTestId('mute').getAttribute('aria-pressed')) === 'true') {
+    await page.getByTestId('mute').click()
+  }
 }
 
 export async function teleport(page: Page, x: number, y: number) {

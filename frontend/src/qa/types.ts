@@ -70,5 +70,6 @@ export type QaHooks = {
   sampleTransport: () => Promise<QaTransport>
   /** Pause or resume the map loop. LiveKit stays connected either way. */
   setRunning: (running: boolean) => void
+  localMic: { enabled: boolean; published: boolean }
   worldToScreen: (x: number, y: number) => { x: number; y: number }
 }

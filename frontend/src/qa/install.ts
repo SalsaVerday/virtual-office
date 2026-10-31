@@ -69,6 +69,9 @@ export function installQaHooks(session: OfficeSession, scene: SceneApi): void {
     setRunning(running: boolean) {
       scene.setRunning(running)
     },
+    get localMic() {
+      return session.qaLocalMic()
+    },
   }
   window.__qa = api
 }
