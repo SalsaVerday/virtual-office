@@ -1,0 +1,212 @@
+[
+ {
+  "skin": "skin1",
+  "shirt": "sq_a",
+  "hair": "shadow",
+  "pants": "wood_dk",
+  "id": "v00"
+ },
+ {
+  "skin": "skin2",
+  "shirt": "sq_b",
+  "hair": "wall_light",
+  "pants": "sq_b_dk",
+  "id": "v01"
+ },
+ {
+  "skin": "skin3",
+  "shirt": "sq_c",
+  "hair": "sq_a_dk",
+  "pants": "metal",
+  "id": "v02"
+ },
+ {
+  "skin": "skin4",
+  "shirt": "sq_d",
+  "hair": "hair_blond",
+  "pants": "green_dk",
+  "id": "v03"
+ },
+ {
+  "skin": "skin1",
+  "shirt": "sq_e",
+  "hair": "wood_md",
+  "pants": "sq_e_dk",
+  "id": "v04"
+ },
+ {
+  "skin": "skin2",
+  "shirt": "green_md",
+  "hair": "hair_brown",
+  "pants": "shadow",
+  "id": "v05"
+ },
+ {
+  "skin": "skin3",
+  "shirt": "cream",
+  "hair": "shadow",
+  "pants": "wood_dk",
+  "id": "v06"
+ },
+ {
+  "skin": "skin4",
+  "shirt": "metal",
+  "hair": "wall_light",
+  "pants": "sq_b_dk",
+  "id": "v07"
+ },
+ {
+  "skin": "skin2",
+  "shirt": "sq_b_dk",
+  "hair": "hair_blond",
+  "pants": "green_dk",
+  "id": "v08"
+ },
+ {
+  "skin": "skin3",
+  "shirt": "sq_c_dk",
+  "hair": "wood_md",
+  "pants": "sq_e_dk",
+  "id": "v09"
+ },
+ {
+  "skin": "skin4",
+  "shirt": "sq_e_dk",
+  "hair": "hair_brown",
+  "pants": "shadow",
+  "id": "v10"
+ },
+ {
+  "skin": "skin1",
+  "shirt": "wood_lt",
+  "hair": "shadow",
+  "pants": "wood_dk",
+  "id": "v11"
+ },
+ {
+  "skin": "skin2",
+  "shirt": "sq_a",
+  "hair": "shadow",
+  "pants": "sq_b_dk",
+  "id": "v12"
+ },
+ {
+  "skin": "skin3",
+  "shirt": "sq_b",
+  "hair": "wall_light",
+  "pants": "metal",
+  "id": "v13"
+ },
+ {
+  "skin": "skin4",
+  "shirt": "sq_c",
+  "hair": "sq_a_dk",
+  "pants": "green_dk",
+  "id": "v14"
+ },
+ {
+  "skin": "skin1",
+  "shirt": "sq_d",
+  "hair": "hair_blond",
+  "pants": "sq_e_dk",
+  "id": "v15"
+ },
+ {
+  "skin": "skin2",
+  "shirt": "sq_e",
+  "hair": "wood_md",
+  "pants": "shadow",
+  "id": "v16"
+ },
+ {
+  "skin": "skin3",
+  "shirt": "green_md",
+  "hair": "hair_brown",
+  "pants": "wood_dk",
+  "id": "v17"
+ },
+ {
+  "skin": "skin4",
+  "shirt": "cream",
+  "hair": "shadow",
+  "pants": "sq_b_dk",
+  "id": "v18"
+ },
+ {
+  "skin": "skin1",
+  "shirt": "metal",
+  "hair": "wall_light",
+  "pants": "shadow",
+  "id": "v19"
+ },
+ {
+  "skin": "skin3",
+  "shirt": "sq_b_dk",
+  "hair": "hair_blond",
+  "pants": "sq_e_dk",
+  "id": "v20"
+ },
+ {
+  "skin": "skin4",
+  "shirt": "sq_c_dk",
+  "hair": "wood_md",
+  "pants": "shadow",
+  "id": "v21"
+ },
+ {
+  "skin": "skin1",
+  "shirt": "sq_e_dk",
+  "hair": "hair_brown",
+  "pants": "wood_dk",
+  "id": "v22"
+ },
+ {
+  "skin": "skin2",
+  "shirt": "wood_lt",
+  "hair": "shadow",
+  "pants": "sq_b_dk",
+  "id": "v23"
+ },
+ {
+  "skin": "skin3",
+  "shirt": "sq_a",
+  "hair": "shadow",
+  "pants": "metal",
+  "id": "v24"
+ },
+ {
+  "skin": "skin4",
+  "shirt": "sq_b",
+  "hair": "wall_light",
+  "pants": "green_dk",
+  "id": "v25"
+ },
+ {
+  "skin": "skin1",
+  "shirt": "sq_c",
+  "hair": "sq_a_dk",
+  "pants": "sq_e_dk",
+  "id": "v26"
+ },
+ {
+  "skin": "skin2",
+  "shirt": "sq_d",
+  "hair": "hair_blond",
+  "pants": "shadow",
+  "id": "v27"
+ },
+ {
+  "skin": "skin3",
+  "shirt": "sq_e",
+  "hair": "wood_md",
+  "pants": "wood_dk",
+  "id": "v28"
+ },
+ {
+  "skin": "skin4",
+  "shirt": "green_md",
+  "hair": "hair_brown",
+  "pants": "sq_b_dk",
+  "id": "v29"
+ }
+]

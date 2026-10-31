@@ -1,0 +1,10 @@
+# Optional. Host networking for WebRTC is fiddly; the README's
+# `livekit-server --dev` path is the one we actually run tests against.
+services:
+  livekit:
+    image: livekit/livekit-server:v1.13.11
+    command: ["--dev", "--bind", "0.0.0.0", "--node-ip", "127.0.0.1"]
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "7882:7882/udp"
