@@ -249,7 +249,7 @@ Live getters. Read them again each time; do not cache the object you got from `.
 
 ## Usage events
 
-`createEventSink()` writes every event to `localStorage` (`vo.events.v1`, capped at 1000). When `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are both set, it also inserts into `usage_events` (and stubs `users` / `sessions` / `presence`). Dev identities are not uuids, so they stay local. A failed Supabase write is logged and does not break the office.
+`createEventSink()` writes every event to `localStorage` (`vo.events.v1`, capped at 1000). When `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are both set, it also inserts into `usage_events` (and stubs `users` / `sessions` / `presence`). A `dev:` identity is stored as a UUIDv5 of that string so the row fits `users.id`. The LiveKit identity stays `dev:…`. A failed Supabase write is logged and does not break the office.
 
 Events: `session_started`, `session_ended`, `join_attempted`, `join_succeeded`, `join_failed`, `status_changed`, `room_entered`, `room_left`, `conversation_started`, `conversation_ended`, `knock_sent`, `knock_answered`, `av_quality_sample`. A conversation is you plus at least one person in audio range. Duration is always stored. `props.counts` is true only when `duration_s` is at least 30. The participant with the lowest id emits the pair, so it is not stored twice. Audio quality is sampled every 30 seconds from LiveKit's WebRTC stats.
 

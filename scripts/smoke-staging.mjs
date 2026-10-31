@@ -10,8 +10,8 @@
  *   4. Two browsers join one room and each sees the other's position.
  *   5. The page sink recorded join_succeeded.
  *   6. If SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set, usage_events is readable.
- *      A row for this session is required only when SMOKE_REQUIRE_REMOTE_EVENT=1.
- *      Dev-login user ids are not uuids, so the office does not insert them.
+ *      Dev-login writes a UUIDv5 of the dev: identity. A row is required only when
+ *      SMOKE_REQUIRE_REMOTE_EVENT=1 (the preview must have the Supabase anon env).
  *
  * The service role key is read from the environment and is never printed.
  */
@@ -163,11 +163,11 @@ async function checkSupabase(sessionId) {
     check(
       'event reached usage_events',
       false,
-      'no row for this session. Dev-login ids are not uuids, so the office does not insert them. Use an Azure user to require a remote row.',
+      'no row for this session. The preview needs VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, and migration 20261031143000_dev_usage_uuid.sql.',
     )
     return
   }
-  console.log('ok  usage_events readable; no row for the dev-login session (expected: dev: ids are not uuids)')
+  console.log('ok  usage_events readable; no row yet (preview Supabase env or the dev-usage migration may be unset)')
 }
 
 main().catch((error) => {

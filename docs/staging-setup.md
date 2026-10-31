@@ -111,4 +111,4 @@ SMOKE_BASE_URL=https://<preview-host> \
 node scripts/smoke-staging.mjs
 ```
 
-The service role key bypasses RLS. It is not a `VITE_` variable and it is not required for the app to run. See `scripts/smoke-staging.mjs` for what each check asserts. Dev-login events stay in the browser sink because those user ids are not uuids. Set `SMOKE_REQUIRE_REMOTE_EVENT=1` only when the session you joined belongs to a uuid user and you want a missing `usage_events` row to fail the script.
+The service role key bypasses RLS. It is not a `VITE_` variable and it is not required for the app to run. See `scripts/smoke-staging.mjs` for what each check asserts. Dev-login events are stored under a UUIDv5 of the `dev:` identity. Set `SMOKE_REQUIRE_REMOTE_EVENT=1` when the preview has `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` and you want a missing `usage_events` row to fail the script. Apply `20261031143000_dev_usage_uuid.sql` first or the insert has no place to land.

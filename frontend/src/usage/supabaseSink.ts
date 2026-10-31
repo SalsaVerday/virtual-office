@@ -1,12 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { eventsFromSupabaseRows } from './adminStats'
+import { usageUserId } from './devUserId'
 import type { UsageEvent } from './types'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
- * Best-effort writer. Dev identities (`dev:…`) are not uuids, so they stay in the
- * local sink. Failures are logged and do not break the office.
+ * Best-effort writer. `dev:…` identities become a UUIDv5 before insert so staging
+ * dev-login can land in `usage_events`. Anything else that is not a uuid stays local.
+ * Failures are logged and do not break the office.
  */
 export class SupabaseEventSink {
   private tail: Promise<void> = Promise.resolve()
@@ -34,9 +36,12 @@ export class SupabaseEventSink {
   }
 
   persist(event: UsageEvent): void {
-    if (!UUID_RE.test(event.user_id) || !UUID_RE.test(event.session_id)) return
     this.tail = this.tail
-      .then(() => this.write(event))
+      .then(async () => {
+        const user_id = await usageUserId(event.user_id)
+        if (!UUID_RE.test(user_id) || !UUID_RE.test(event.session_id)) return
+        await this.write(user_id === event.user_id ? event : { ...event, user_id })
+      })
       .catch((error: unknown) => {
         console.warn('Supabase usage write failed; the event is still in the local sink', error)
       })
