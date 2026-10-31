@@ -1,0 +1,15 @@
+{
+  "name": "virtual-office",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev -w backend",
+    "dev:frontend": "npm run dev -w frontend",
+    "build": "npm run build -w backend && npm run build -w frontend",
+    "test": "npm run test -w frontend",
+    "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend"
+  }
+}

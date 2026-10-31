@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+.tools/
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/playwright/.cache/
+coverage/
+*.tsbuildinfo
+
+# Secrets stay in the environment. Only *.env.example is committed.
+.env*
+!.env.example
