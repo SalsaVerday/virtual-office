@@ -12,7 +12,7 @@
  <tile id="8"><properties><property name="name" value="carpet_e"/></properties></tile>
  <tile id="9"><properties><property name="name" value="carpet_lounge"/></properties></tile>
  <tile id="10"><properties><property name="name" value="door_threshold"/></properties></tile>
- <tile id="11"><properties><property name="name" value="collision"/></properties></tile>
+ <tile id="11"><properties><property name="name" value="collision"/><property name="collides" type="bool" value="true"/></properties></tile>
  <tile id="12"><properties><property name="name" value="wall_top"/></properties></tile>
  <tile id="13"><properties><property name="name" value="wall_face"/></properties></tile>
  <tile id="14"><properties><property name="name" value="wall_face_window"/></properties></tile>

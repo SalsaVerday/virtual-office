@@ -5,8 +5,9 @@ const VARIANT_KEY = 'vo.variant'
 
 /**
  * Microsoft Entra ID (Azure AD) through Supabase Auth's Azure provider.
- * Selected with VITE_AUTH_PROVIDER=supabase once VITE_SUPABASE_URL and
- * VITE_SUPABASE_ANON_KEY are set in the host environment (never in git).
+ * Selected with VITE_AUTH_PROVIDER=azure (supabase is accepted as an alias)
+ * once VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in the host
+ * environment (never in git).
  *
  * The Supabase project needs the Azure provider enabled and this site's
  * origin on the redirect allow-list. The anon key is public by design;
@@ -25,7 +26,7 @@ export function createSupabaseAuth(): AuthProvider {
   }
 
   return {
-    id: 'supabase',
+    id: 'azure',
     async getSession() {
       if (!url || !anonKey) return null
       const supabase = await client()
@@ -40,7 +41,13 @@ export function createSupabaseAuth(): AuthProvider {
       } catch {
         variant = 'v00'
       }
-      return { userId: user.id, displayName, variant, provider: 'supabase' }
+      return {
+        userId: user.id,
+        displayName: displayName.replace(/\s+/g, ' ').slice(0, 24),
+        variant,
+        provider: 'azure',
+        accessToken: data.session?.access_token,
+      }
     },
     async signIn(input) {
       localStorage.setItem(VARIANT_KEY, sanitizeVariant(input.variant))

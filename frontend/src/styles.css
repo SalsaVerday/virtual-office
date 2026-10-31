@@ -116,12 +116,44 @@ input {
 .status { display: flex; gap: 4px; }
 
 .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: transparent;
   border: 1px solid #7d6b78;
   border-radius: 999px;
   padding: 4px 10px;
   cursor: pointer;
 }
+
+.icon {
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  background-image: url('/assets/ui/status_icons.png');
+  background-repeat: no-repeat;
+  background-size: 160px 32px;
+  image-rendering: pixelated;
+  flex: none;
+}
+
+.icon-0 { background-position: 0 0; }
+.icon-1 { background-position: -32px 0; }
+.icon-2 { background-position: -64px 0; }
+.icon-3 { background-position: -96px 0; }
+.icon-4 { background-position: -128px 0; }
+
+.icon.sm {
+  width: 16px;
+  height: 16px;
+  background-size: 80px 16px;
+}
+
+.icon.sm.icon-0 { background-position: 0 0; }
+.icon.sm.icon-1 { background-position: -16px 0; }
+.icon.sm.icon-2 { background-position: -32px 0; }
+.icon.sm.icon-3 { background-position: -48px 0; }
+.icon.sm.icon-4 { background-position: -64px 0; }
 
 .chip.on {
   background: #f4ead6;
@@ -174,4 +206,5 @@ input {
 .roster h2 { margin: 0 0 6px; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: #b3a1a3; }
 .roster ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .roster li { display: flex; flex-direction: column; font-size: 13px; }
+.who { display: inline-flex; align-items: center; gap: 6px; }
 .peer-meta, .roster em { color: #b3a1a3; font-style: normal; font-size: 11px; }

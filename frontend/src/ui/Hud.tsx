@@ -1,5 +1,6 @@
 import type { PresenceStatus } from '../types'
 import type { OfficeSession, OfficeUi } from '../net/session'
+import { STATUS_FRAME, StatusIcon } from './StatusIcon'
 
 const STATUSES: { id: PresenceStatus; label: string }[] = [
   { id: 'online', label: 'Online' },
@@ -41,6 +42,10 @@ export function Hud({ ui, session, onLeave }: Props) {
             aria-pressed={ui.status === status.id}
             onClick={() => session.setStatus(status.id)}
           >
+            <StatusIcon
+              frame={STATUS_FRAME[status.id]}
+              testId={ui.status === status.id ? 'status-icon' : undefined}
+            />
             {status.label}
           </button>
         ))}

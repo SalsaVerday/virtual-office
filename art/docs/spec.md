@@ -1,6 +1,6 @@
 # Virtual Office: Sprite and Tile Spec
 
-The game files sit at the pack root: `tilesets/`, `maps/`, `sprites/`, `ui/`. Copy them as-is into `public/assets/` in the repo. Every path inside `.json` and `.tsx` files is relative, for example `../tilesets/office_props.png` from `maps/`.
+The game files sit at the pack root: `tilesets/`, `maps/`, `sprites/`, `ui/`. Copy them as-is into `frontend/public/assets/` in the repo (served at URL path `assets/`, as used in the snippets below). Every path inside `.json` and `.tsx` files is relative, for example `../tilesets/office_props.png` from `maps/`.
 
 ## Global rules
 - 32x32 tiles, margin 0, spacing 0, 8 columns per tileset. Integer zoom only. Phaser config: `pixelArt: true` (or `render: { pixelArt: true, roundPixels: true }`).
@@ -104,14 +104,15 @@ The game files sit at the pack root: `tilesets/`, `maps/`, `sprites/`, `ui/`. Co
 - The whiteboard is l + r.
 - The sofa is l, m, r.
 - The rug is 3x3 (placed on the `floor` layer).
+- `standup_marker` (gid 39) sits on `props_below` as a 2x2 group at tiles (23–24, 15–16); it is walkable (no collision).
 - `plant_tall_top` goes in `props_above`, one cell above `plant_tall_bottom`, so avatars walk behind it.
 
 ## Map: maps/office.json
 - 48x30 tiles (1536x960 px), orthogonal, right-down render order, Tiled 1.10 JSON, tilesets embedded (image paths `../tilesets/*.png`).
 - **Layers, in order:**
-  - `floor` (includes rug and standup marker)
+  - `floor` (includes the 3x3 rug)
   - `walls`
-  - `props_below`
+  - `props_below` (includes the standup marker)
   - `props_above` (render above avatars)
   - `collision` (tile layer, invisible; any non-zero gid blocks)
   - `zones` (object layer)

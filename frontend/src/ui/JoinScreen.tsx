@@ -79,8 +79,8 @@ export function JoinScreen({
         </p>
         <p className="auth-note" data-testid="auth-provider">
           {providerId === 'dev'
-            ? 'Dev sign-in. Tests and phase 1 use this name entry, not Microsoft SSO.'
-            : 'Microsoft sign-in via Supabase Auth.'}
+            ? 'Dev sign-in. Tests and staging use this name entry, not Microsoft SSO.'
+            : 'Microsoft sign-in via Supabase Auth (Entra ID).'}
         </p>
         <label>
           Name
