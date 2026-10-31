@@ -27,11 +27,29 @@ export function installQaHooks(session: OfficeSession, scene: SceneApi): void {
     get roomName() {
       return session.roomName
     },
+    get sessionId() {
+      return session.sessionId
+    },
+    get status() {
+      return session.status
+    },
+    get statusSource() {
+      return session.statusSource
+    },
     get participants() {
       return session.qaParticipants()
     },
     get subscriptions() {
       return session.qaSubscriptions()
+    },
+    get knocks() {
+      return session.qaKnocks()
+    },
+    get events() {
+      return session.qaEvents()
+    },
+    exportEvents(format: 'json' | 'csv') {
+      return session.exportEvents(format)
     },
     worldToScreen(x: number, y: number) {
       return scene.worldToScreen(x, y)

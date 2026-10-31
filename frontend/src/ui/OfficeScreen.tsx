@@ -2,6 +2,7 @@ import { useEffect, useRef, useSyncExternalStore } from 'react'
 import { mountOffice } from '../game/createGame'
 import type { OfficeSession } from '../net/session'
 import { Hud } from './Hud'
+import { StatusIcon } from './StatusIcon'
 
 type Props = {
   session: OfficeSession
@@ -29,17 +30,22 @@ export function OfficeScreen({ session, onLeave }: Props) {
       <div className="stage" ref={stageRef} data-testid="office-stage">
         {target ? (
           <div className="prompt" data-testid="knock-prompt">
+            <StatusIcon frame={4} testId="knock-icon" />
             <span>{target.name} is focusing</span>
-            <button type="button" data-testid="knock" onClick={() => session.knock(target.identity)}>
+            <button type="button" className="chip" data-testid="knock" onClick={() => session.knock(target.identity)}>
               Knock
             </button>
           </div>
         ) : null}
         {ui.incomingKnocks.map((knock) => (
           <div className="prompt incoming" data-testid="incoming-knock" key={knock.identity}>
+            <StatusIcon frame={4} />
             <span>{knock.name} knocked</span>
-            <button type="button" data-testid="knock-accept" onClick={() => session.acceptKnock(knock.identity)}>
+            <button type="button" className="chip" data-testid="knock-accept" onClick={() => session.acceptKnock(knock.identity)}>
               Let them in
+            </button>
+            <button type="button" className="chip" data-testid="knock-ignore" onClick={() => session.ignoreKnock(knock.identity)}>
+              Ignore
             </button>
           </div>
         ))}
@@ -47,11 +53,20 @@ export function OfficeScreen({ session, onLeave }: Props) {
           <h2>Here</h2>
           <ul>
             <li>
-              {ui.displayName} <em>you</em>
+              <span className="who">
+                <StatusIcon frame={ui.status === 'online' ? 0 : ui.status === 'away' ? 1 : 2} small />
+                {ui.displayName} <em>you</em>
+              </span>
             </li>
             {ui.peers.map((peer) => (
               <li key={peer.identity} data-testid={`participant-${peer.identity}`}>
-                <span>{peer.name}</span>
+                <span className="who">
+                  <StatusIcon
+                    frame={peer.talking ? 3 : peer.status === 'away' ? 1 : peer.status === 'focus' ? 2 : 0}
+                    small
+                  />
+                  {peer.name}
+                </span>
                 <span className="peer-meta">
                   {peer.zoneName ?? 'Hallway'}
                   {peer.gain > 0 ? ` · hear ${Math.round(peer.gain * 100)}%` : ''}

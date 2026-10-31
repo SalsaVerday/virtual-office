@@ -1,4 +1,5 @@
 import type { PresenceStatus } from '../types'
+import type { StatusSource, UsageEvent } from '../usage/types'
 
 export type SceneApi = {
   getPosition(): { x: number; y: number }
@@ -33,14 +34,26 @@ export type QaSubscription = {
  * Dev/staging only. Properties are live getters.
  * `roomName` is the LiveKit room. `zoneName` is the Tiled zone under your feet (null in the hallway).
  */
+export type QaKnocks = {
+  targets: Array<{ identity: string; name: string }>
+  incoming: Array<{ identity: string; name: string }>
+  accepted: string[]
+}
+
 export type QaHooks = {
   ready: true
   userId: string
+  sessionId: string
   position: { x: number; y: number }
   teleport: (x: number, y: number) => void
   zoneName: string | null
   roomName: string
+  status: PresenceStatus
+  statusSource: StatusSource
   participants: QaParticipant[]
   subscriptions: QaSubscription[]
+  knocks: QaKnocks
+  events: UsageEvent[]
+  exportEvents: (format: 'json' | 'csv') => string
   worldToScreen: (x: number, y: number) => { x: number; y: number }
 }
