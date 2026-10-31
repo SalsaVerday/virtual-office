@@ -93,7 +93,7 @@ Missing `LIVEKIT_URL`, `LIVEKIT_API_KEY`, or `LIVEKIT_API_SECRET` makes `/api/to
 ## How to walk and talk
 
 - **WASD** or arrow keys move. **Click** the floor to pathfind around the collision layer.
-- Your avatar is one of `avatar_v00`–`avatar_v29` (the color picker). A name tag and a status icon sit above the head.
+- Your avatar is one of `avatar_v00`–`avatar_v29`, chosen on the join screen. A name tag and a status icon sit above the head.
 - **Proximity.** Full volume within 96px (3 tiles). Volume eases to silence at 288px (9 tiles). Past that, the gain is 0 and the client drops the microphone subscription after a 750ms grace period, so a quiet room does not keep every track open. Dev and staging builds accept `?subscribe=all` to restore the old subscribe-to-everyone behavior for the load-test baseline. Production ignores that flag.
 - **Focus.** The Focus control stops proximity audio in both directions. Someone who walks up sees a knock prompt instead of hearing you. Let them in and normal proximity applies for the rest of the session. Ignore dismisses the prompt and leaves audio closed. A meeting room still connects without a knock: walking in is the join.
 - **Away.** Changes the icon. After 3 minutes without input, or 20 seconds in a hidden tab, Online becomes Away on its own. Focus is left alone, and an Away you picked yourself stays until you change it. Coming back clears an automatic Away. Status is published on the position packets and as LiveKit participant attributes (`status`, `variant`).
@@ -127,7 +127,13 @@ frontend/public/assets/maps/office.json
 frontend/public/assets/sprites/avatar_v00.png … avatar_v29.png
 frontend/public/assets/sprites/variants.json
 frontend/public/assets/ui/status_icons.png
+frontend/public/assets/ui/join_splash.png
+frontend/public/assets/ui/join_splash@4x.png
+frontend/public/assets/ui/avatar_picker.png
+frontend/public/assets/ui/avatar_picker.json
 ```
+
+Favicons and the web manifest live in `frontend/public/` (`favicon.ico`, `favicon-16.png`, `favicon-32.png`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `site.webmanifest`). Teams icons live in `teams/` at the repo root and are not served by the site.
 
 Phaser is configured with `pixelArt: true` and `roundPixels: true`. Tiles are 32×32 with no margin or spacing. The camera zoom is 2 (integer). Embedded tileset image paths are ignored; the scene calls `addTilesetImage` with the keys `office_floor_walls` and `office_props`.
 
@@ -221,7 +227,9 @@ Live getters. Read them again each time; do not cache the object you got from `.
 | `display-name` | Name field |
 | `room-name` | Room field on the join form |
 | `join` | Join button |
-| `variant-v00` … `variant-v29` | Color |
+| `avatar-picker` | Avatar grid on the join screen |
+| `avatar-option-v00` … `avatar-option-v29` | One avatar in that grid |
+| `variant-v00` … `variant-v29` | Same choice, kept for the existing join helpers |
 | `auth-provider` | Text that this build is dev sign-in |
 | `current-room` | LiveKit room label |
 | `zone-name` | Zone label (`Hallway` when `zoneName` is null) |
@@ -236,7 +244,7 @@ Live getters. Read them again each time; do not cache the object you got from `.
 ## What is only a seam
 
 - **Microsoft sign-in.** `createAuthProvider()` returns dev name entry, or the Supabase Azure provider when `VITE_AUTH_PROVIDER=azure` (`supabase` is an alias). The token route enforces the same choice with `AUTH_PROVIDER`. See `docs/auth-plan.md`. No Azure app is wired up in this repo.
-- **Teams.** Not started. Slack is out. A later tab or bot should deep-link to `/?room=` (and `?entry=teams_tab` or `teams_link`) and can call `setStatus(status, 'teams')`. It should not replace LiveKit audio.
+- **Teams.** Not started. Placeholder icons sit in `teams/` and are not part of the website. There is no Teams manifest yet. Slack is out. A later tab or bot should deep-link to `/?room=` (and `?entry=teams_tab` or `teams_link`) and can call `setStatus(status, 'teams')`. It should not replace LiveKit audio.
 - **Admin view.** `/admin` is not in the office HUD. `VITE_ADMIN=true` opens it in dev and staging. Azure sign-in will pass `users.is_admin` instead; a known false denies the page even if the flag is set. It reads the local event sink today, through the same sink interface that reads `usage_events` once Supabase is configured.
 
 ## Usage events
