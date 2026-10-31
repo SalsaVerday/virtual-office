@@ -1,8 +1,8 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { build } from 'esbuild'
+import { build, type Plugin as EsbuildPlugin } from 'esbuild'
 import react from '@vitejs/plugin-react'
 import { loadEnv, type Connect, type Plugin, type ViteDevServer } from 'vite'
 import { defineConfig } from 'vitest/config'
@@ -31,6 +31,24 @@ type ApiHost = {
   ssrLoadModule?: (id: string) => Promise<ApiModule>
 }
 
+/** Preview bundles the API with esbuild, which does not map `.js` specifiers onto `.ts`. */
+function resolveApiJsSpecifier(): EsbuildPlugin {
+  return {
+    name: 'resolve-api-js-specifier',
+    setup(build) {
+      build.onResolve({ filter: /^\./ }, (args) => {
+        if (!args.path.endsWith('.js')) return undefined
+        const stem = path.resolve(path.dirname(args.importer), args.path.slice(0, -3))
+        for (const ext of ['.ts', '.tsx', '.mts']) {
+          const file = stem + ext
+          if (existsSync(file)) return { path: file }
+        }
+        return undefined
+      })
+    },
+  }
+}
+
 async function loadApiModule(server: ApiHost): Promise<ApiModule> {
   if (server.ssrLoadModule) return server.ssrLoadModule('/api/lib/http.ts')
   const cacheDir = path.join(server.config.root, 'node_modules/.cache')
@@ -43,6 +61,7 @@ async function loadApiModule(server: ApiHost): Promise<ApiModule> {
     format: 'esm',
     outfile,
     packages: 'external',
+    plugins: [resolveApiJsSpecifier()],
   })
   return import(pathToFileURL(outfile).href) as Promise<ApiModule>
 }

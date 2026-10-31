@@ -3,6 +3,7 @@ dist/
 *.log
 .DS_Store
 .tools/
+frontend/.api-dist/
 frontend/test-results/
 frontend/playwright-report/
 frontend/blob-report/

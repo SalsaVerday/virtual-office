@@ -1,7 +1,7 @@
-import { loadLiveKitConfig } from './config'
-import { ApiError } from './errors'
-import { resolveIdentity } from './gate'
-import { issueToken } from './issue'
+import { loadLiveKitConfig } from './config.js'
+import { ApiError } from './errors.js'
+import { resolveIdentity } from './gate.js'
+import { issueToken } from './issue.js'
 
 export type TokenCall = {
   method: string

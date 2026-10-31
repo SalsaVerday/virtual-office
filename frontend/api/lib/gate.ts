@@ -1,8 +1,8 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import { demoUserId } from '../../src/usage/devUserId'
-import { isVercelProduction } from './config'
-import { ApiError } from './errors'
-import { assertDemoPasscode } from './passcode'
+import { demoUserId } from '../../src/usage/devUserId.js'
+import { isVercelProduction } from './config.js'
+import { ApiError } from './errors.js'
+import { assertDemoPasscode } from './passcode.js'
 
 export type Identity = {
   identity: string

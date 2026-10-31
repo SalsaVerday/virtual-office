@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { frontendOrigins } from './config'
-import { ApiError } from './errors'
-import { tokenResult } from './tokenResult'
+import { frontendOrigins } from './config.js'
+import { ApiError } from './errors.js'
+import { tokenResult } from './tokenResult.js'
 
 type WithBody = IncomingMessage & { body?: unknown }
 

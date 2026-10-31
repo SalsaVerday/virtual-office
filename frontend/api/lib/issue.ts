@@ -1,6 +1,6 @@
 import { AccessToken } from 'livekit-server-sdk'
-import type { LiveKitConfig } from './config'
-import { ApiError } from './errors'
+import type { LiveKitConfig } from './config.js'
+import { ApiError } from './errors.js'
 
 const ROOM_RE = /^[A-Za-z0-9_-]{1,64}$/
 const IDENTITY_RE = /^[A-Za-z0-9:_-]{1,128}$/

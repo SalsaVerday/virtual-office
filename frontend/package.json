@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173",
-    "build": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.api.json --noEmit && vite build",
-    "build:staging": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.api.json --noEmit && vite build --mode staging",
+    "build": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.api.json --noEmit && node scripts/check-api-esm.mjs && vite build",
+    "build:staging": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.api.json --noEmit && node scripts/check-api-esm.mjs && vite build --mode staging",
     "preview": "vite preview --host 127.0.0.1 --port 4173",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.api.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.api.json --noEmit",

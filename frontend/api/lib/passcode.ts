@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
-import { ApiError } from './errors'
+import { ApiError } from './errors.js'
 
 /** Stable code. No secret material. Returned when DEMO_PASSCODE is missing. */
 export const DEMO_UNCONFIGURED = 'demo_passcode_unconfigured'
