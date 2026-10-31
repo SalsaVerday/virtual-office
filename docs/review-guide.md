@@ -1,8 +1,8 @@
 # Review guide
 
-Stack, bottom up. Do not merge a PR until the one under it is on `main` and this PR's base has been retargeted to `main`. GitHub: open the PR → Edit → change base.
+PRs #1–#9 are on `main` (merge PR #10). The stack notes below are the record of that work. The new security surface is demo auth: `AUTH_PROVIDER=demo`, a shared passcode, no Entra until after the MVP pitch.
 
-No secrets belong in git. Env vars are names only.
+No secrets belong in git. Env vars are names only. The demo passcode is `DEMO_PASSCODE` on the server. It is never a `VITE_` variable.
 
 ## Merge order
 
@@ -26,7 +26,7 @@ Retarget only after the parent is on `main`. Merging a child while its base is s
 
 - **#2 Token route, status, knock, local events.** `/api/token` is the only server path. It must fail closed.
   - Risk: minting a token with no LiveKit secret, or trusting the body on the public internet.
-  - Look: `frontend/api/lib/tokenResult.ts` `tokenResult` (line 27). `frontend/api/lib/config.ts` `loadLiveKitConfig` (line 26) refuses the dev secret when `NODE_ENV` or `VERCEL_ENV` is `production` (lines 39–42). `frontend/api/lib/gate.ts` `resolveIdentity` (line 108).
+  - Look: `frontend/api/lib/tokenResult.ts` `tokenResult`. `frontend/api/lib/config.ts` `loadLiveKitConfig` refuses the dev secret when `NODE_ENV` or `VERCEL_ENV` is `production`. `frontend/api/lib/gate.ts` `resolveIdentity`.
 
 - **#3 Load test and selective subscribe.** 30 clients. Subscribe only while audible.
   - Risk: still subscribed to every mic, or dropping someone you should hear.
@@ -54,7 +54,11 @@ Retarget only after the parent is on `main`. Merging a child while its base is s
 
 - **PR G Dev-login uuid.** `dev:…` becomes a UUIDv5 so staging usage rows can be inserted. LiveKit identity stays `dev:…`.
   - Risk: the anon key can insert usage rows. See Security.
-  - Look: `frontend/src/usage/devUserId.ts` `usageUserId` (line 11) and `DEV_USAGE_NAMESPACE` (line 6). `frontend/src/usage/supabaseSink.ts` `persist` (line 38). `supabase/migrations/20261031143000_dev_usage_uuid.sql`.
+  - Look: `frontend/src/usage/devUserId.ts` `usageUserId` and `DEV_USAGE_NAMESPACE`. `frontend/src/usage/supabaseSink.ts` `persist`. `supabase/migrations/20261031143000_dev_usage_uuid.sql`.
+
+- **Demo passcode.** `AUTH_PROVIDER=demo`. The join form sends a name and a shared passcode. `/api/token` checks the passcode. Azure still works when `AUTH_PROVIDER=azure`.
+  - Risk: the passcode shipped in the client bundle, logged, or compared in a way that leaks it. Or an empty `DEMO_PASSCODE` still minting a token.
+  - Look: `frontend/api/lib/passcode.ts` `assertDemoPasscode` (around line 83) and `passcodesMatch`. `frontend/api/lib/gate.ts` `resolveIdentity` demo branch (around line 124). `frontend/src/auth/demoAuth.ts` (storage omits the passcode). `frontend/src/ui/JoinScreen.tsx` `passcode-input`.
 
 ## Security
 
@@ -62,10 +66,13 @@ Retarget only after the parent is on `main`. Merging a child while its base is s
 - **Dev secret.** If `NODE_ENV` or `VERCEL_ENV` is `production`, secret `secret` or any secret shorter than 32 characters is refused. Vercel preview has `NODE_ENV=production` and `VERCEL_ENV=preview`, so the dev secret is refused there too. Staging needs a real Cloud secret.
 - **Who gets a token.**
   - `AUTH_PROVIDER` unset or `dev`: the body identity is trusted. Local and tests only.
-  - `AUTH_PROVIDER=azure`: body identity is ignored. Requires `Authorization: Bearer`, a valid Supabase JWT (`SUPABASE_JWT_SECRET`), Azure provider, and `AZURE_TENANT_ID` match (`resolveIdentity`, lines 122–136). Missing secret or tenant is 503. No bearer is 401.
-  - **Dev login on staging:** `ALLOW_DEV_LOGIN=true` and the identity starts with `dev:` and there is no bearer (`gate.ts` lines 29–31 and 118–119). Ignored when `VERCEL_ENV=production` (`isVercelProduction`). Do not set `ALLOW_DEV_LOGIN` on Production.
-- **QA hooks are not in the production build.** `qaHooksEnabled` returns false when `MODE === 'production'` before it looks at `VITE_QA_HOOKS` (`frontend/src/qa/enable.ts` lines 11–15). `npm run build` is production mode. `npm run build:staging` is staging mode, and `frontend/vercel.json` runs that only when `VERCEL_ENV` is not `production`.
-- **Dev login is not a production path.** Production should set `AUTH_PROVIDER=azure` and `VITE_AUTH_PROVIDER=azure`. `ALLOW_DEV_LOGIN` is ignored on Production even if it is set.
+  - `AUTH_PROVIDER=demo`: the body identity is ignored. `DEMO_PASSCODE` must be non-empty or the route returns 503 `demo_passcode_unconfigured` and no token (`assertDemoPasscode`). The guess is SHA-256'd on both sides and compared with `timingSafeEqual`, so a length mismatch is not an early return. A wrong guess is 401 `bad_passcode`. The response and the logs do not include the guess or the configured value. Five wrong guesses on one instance key return 429 `rate_limited` with `Retry-After`. That map is in-memory per server instance and clears on a cold start. It is not a global lock. A correct passcode during the backoff is still refused. `ALLOW_DEV_LOGIN` does not skip this check.
+  - The LiveKit identity is `demoUserId(name)`: UUIDv5 of `demo:<name>` under `DEV_USAGE_NAMESPACE` (`frontend/src/usage/devUserId.ts`). The same name is the same id, so `usage_events` inserts match `users.id`. The passcode is not part of the id. The display name is not lowercased in the room; the uuid input is.
+  - `AUTH_PROVIDER=azure`: body identity is ignored. Requires `Authorization: Bearer`, a valid Supabase JWT (`SUPABASE_JWT_SECRET`), Azure provider, and `AZURE_TENANT_ID` match (`resolveIdentity`, the branch after the demo and dev returns). Missing secret or tenant is 503. No bearer is 401.
+  - **Dev login on Azure staging:** `ALLOW_DEV_LOGIN=true` and the identity starts with `dev:` and there is no bearer (`devLoginAllowed`, then the `dev:` check in `resolveIdentity`). Ignored when `VERCEL_ENV=production` (`isVercelProduction`). Do not set `ALLOW_DEV_LOGIN` on Production. Demo mode does not use this exception.
+- **QA hooks are not in the production build.** `qaHooksEnabled` returns false when `MODE === 'production'` before it looks at `VITE_QA_HOOKS` (`frontend/src/qa/enable.ts`). `npm run build` is production mode. `npm run build:staging` is staging mode, and `frontend/vercel.json` runs that only when `VERCEL_ENV` is not `production`. Demo preview builds keep the hooks so smoke can run. Production demo builds do not. See `docs/staging-setup.md`.
+- **The passcode stays on the server.** `DEMO_PASSCODE` is read only in `assertDemoPasscode`. The client posts what the user typed to `/api/token` and does not persist it (`demoAuth` writes `vo.session` without a passcode field). `VITE_DEMO_PASSCODE` fails the Vite build. Nothing in the client bundle should contain the configured value.
+- **Dev login is not the pitch path.** The pitch sets `AUTH_PROVIDER=demo` and `VITE_AUTH_PROVIDER=demo`. `AUTH_PROVIDER=azure` remains available. `ALLOW_DEV_LOGIN` is ignored on Production even if it is set, and it does not apply in demo mode.
 - **Service role key.** Only `scripts/smoke-staging.mjs` reads `SUPABASE_SERVICE_ROLE_KEY`, to select `usage_events`. It is not a `VITE_` variable, not in the browser bundle, and not required for the app. The database URI `SUPABASE_DB_URL` is the same: shell only, for `scripts/migrate.sh`.
 - **Anon usage writes (PR G).** Migration `20261031143000_dev_usage_uuid.sql` drops `users.id → auth.users` and lets the anon key insert users (`is_admin` must be false), sessions, usage events, and presence. That is what lets a staging dev-login (no Supabase JWT) insert a row. Anyone with the public anon key can insert those rows. They cannot set `is_admin`. Authenticated Azure users are still limited to `user_id = auth.uid()` by the earlier policies. Do not ship this migration to production until that tradeoff is accepted.
 - **Admin.** `/admin` is unlinked. `canViewAdmin` needs `VITE_ADMIN=true` until a profile supplies `users.is_admin`.
@@ -74,9 +81,19 @@ Retarget only after the parent is on `main`. Merging a child while its base is s
 
 Set in Vercel. Preview = staging. Production = the production domain. Values stay in the dashboards.
 
-- Server, both scopes: `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `SUPABASE_URL`, `SUPABASE_JWT_SECRET`, `AZURE_TENANT_ID`, `FRONTEND_ORIGIN`, `AUTH_PROVIDER`
-- Browser, both scopes: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_AUTH_PROVIDER`
-- Preview only: `ALLOW_DEV_LOGIN=true`. Optional `VITE_ADMIN=true`
-- Leave unset: `VITE_TOKEN_URL`, `VITE_QA_HOOKS` (the build mode decides hooks)
-- Shell only, never `VITE_`: `SUPABASE_DB_URL` (migrate), `SUPABASE_SERVICE_ROLE_KEY` (smoke)
+Demo deploy (no Entra). Full table in `docs/staging-setup.md`.
+
+- Server, on the Vercel scope you open (Preview and/or Production): `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `DEMO_PASSCODE`, `AUTH_PROVIDER=demo`, `FRONTEND_ORIGIN`
+- Browser, same scope: `VITE_AUTH_PROVIDER=demo`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+- Same Supabase URL also as `SUPABASE_URL` if you want the name on the server. The demo token route does not read it.
+- Not used for demo: `SUPABASE_JWT_SECRET`, `AZURE_TENANT_ID`, `ALLOW_DEV_LOGIN`
+- Shell only, never `VITE_`: `SUPABASE_DB_URL` (migrate), `SUPABASE_SERVICE_ROLE_KEY` (smoke only)
+- No Vercel token when the GitHub integration deploys. A token is only for the Vercel CLI or API.
+- Leave unset: `VITE_TOKEN_URL`, `VITE_QA_HOOKS`, `VITE_DEMO_PASSCODE`
+
+Azure, when you switch later:
+
+- Server: `AUTH_PROVIDER=azure`, `SUPABASE_JWT_SECRET`, `AZURE_TENANT_ID`, plus the LiveKit and Supabase URL variables above
+- Browser: `VITE_AUTH_PROVIDER=azure`
 - Azure client id and client secret: Supabase → Authentication → Providers → Azure. Not Vercel. Not git.
+- Preview only if QA still uses the name form: `ALLOW_DEV_LOGIN=true`

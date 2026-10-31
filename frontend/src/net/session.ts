@@ -101,9 +101,16 @@ function variantFromMetadata(metadata: string | undefined): string {
   }
 }
 
+function demoTokenMessage(code: string): string {
+  if (code === 'demo_passcode_unconfigured') return 'Demo sign-in is not configured.'
+  if (code === 'bad_passcode') return 'Wrong passcode.'
+  if (code === 'rate_limited') return 'Too many attempts. Wait a moment and try again.'
+  return code
+}
+
 function errorCode(error: unknown): string {
   const message = error instanceof Error ? error.message : ''
-  if (/token|LIVEKIT_|sign in|session|tenant/i.test(message)) return 'token'
+  if (/token|LIVEKIT_|sign in|session|tenant|passcode|too many attempts/i.test(message)) return 'token'
   if (/timeout/i.test(message)) return 'timeout'
   return 'connect'
 }
@@ -114,6 +121,8 @@ export class OfficeSession {
   readonly variant: string
   readonly sessionId: string
   readonly accessToken: string | null
+  /** Demo passcode, memory only. Not part of the UI snapshot. */
+  private readonly passcode: string | null
   roomName = ''
   status: PresenceStatus = 'online'
   statusSource: StatusSource = 'manual'
@@ -170,6 +179,7 @@ export class OfficeSession {
     this.variant = sanitizeVariant(user.variant)
     this.sessionId = crypto.randomUUID()
     this.accessToken = user.accessToken ?? null
+    this.passcode = user.passcode?.trim() ? user.passcode.trim() : null
     this.mixer = new ProximityMixer(audio)
     this.conversations = new ConversationTracker(this.userId)
     this.idleMs = readDuration(import.meta.env.VITE_IDLE_MS, IDLE_AWAY_MS)
@@ -463,21 +473,23 @@ export class OfficeSession {
     const endpoint = import.meta.env.VITE_TOKEN_URL || '/api/token'
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
     if (this.accessToken) headers.Authorization = `Bearer ${this.accessToken}`
+    const payload: Record<string, string> = {
+      identity: this.userId,
+      name: this.displayName,
+      room: this.roomName,
+      variant: this.variant,
+    }
+    if (this.passcode) payload.passcode = this.passcode
     const response = await fetch(endpoint, {
       method: 'POST',
       headers,
-      body: JSON.stringify({
-        identity: this.userId,
-        name: this.displayName,
-        room: this.roomName,
-        variant: this.variant,
-      }),
+      body: JSON.stringify(payload),
     })
     if (!response.ok) {
       let message = `Token request failed (${response.status})`
       try {
         const body = (await response.json()) as { error?: string }
-        if (body.error) message = body.error
+        if (body.error) message = demoTokenMessage(body.error)
       } catch {
         // The body was not JSON. The status line is enough.
       }

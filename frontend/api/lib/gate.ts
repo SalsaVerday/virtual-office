@@ -1,6 +1,8 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
+import { demoUserId } from '../../src/usage/devUserId'
 import { isVercelProduction } from './config'
 import { ApiError } from './errors'
+import { assertDemoPasscode } from './passcode'
 
 export type Identity = {
   identity: string
@@ -10,15 +12,17 @@ export type Identity = {
 type Body = {
   identity?: unknown
   name?: unknown
+  passcode?: unknown
 }
 
 function asString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-function authMode(env: NodeJS.ProcessEnv): 'dev' | 'azure' {
+function authMode(env: NodeJS.ProcessEnv): 'dev' | 'azure' | 'demo' {
   const raw = (env.AUTH_PROVIDER ?? 'dev').trim().toLowerCase()
   if (raw === 'azure' || raw === 'supabase') return 'azure'
+  if (raw === 'demo') return 'demo'
   return 'dev'
 }
 
@@ -102,14 +106,27 @@ function nameFromPayload(payload: Record<string, unknown>): string {
 
 /**
  * Dev mode trusts the client identity (local and the staging test path).
+ * Demo mode checks DEMO_PASSCODE and derives a UUIDv5 from the display name.
  * Azure mode ignores identity and name from the body and reads them from a
  * verified Supabase access token. See docs/auth-plan.md.
  */
-export function resolveIdentity(env: NodeJS.ProcessEnv, authorization: string | undefined, body: Body): Identity {
+export async function resolveIdentity(
+  env: NodeJS.ProcessEnv,
+  authorization: string | undefined,
+  body: Body,
+  clientKey = 'unknown',
+): Promise<Identity> {
   const mode = authMode(env)
   const bearer = authorization?.replace(/^Bearer\s+/i, '').trim()
   const bodyIdentity = asString(body.identity)
   const bodyName = asString(body.name).replace(/\s+/g, ' ')
+
+  if (mode === 'demo') {
+    assertDemoPasscode(env, body.passcode, clientKey)
+    const name = bodyName.slice(0, 24)
+    if (name.length < 1) throw new ApiError('name must be 1–24 characters', 400)
+    return { identity: await demoUserId(name), name }
+  }
 
   if (mode === 'dev') {
     return { identity: bodyIdentity, name: bodyName.slice(0, 24) }

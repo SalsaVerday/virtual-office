@@ -16,6 +16,7 @@ export type JoinInput = {
   displayName: string
   variant: string
   room: string
+  passcode?: string
 }
 
 type Props = {
@@ -64,6 +65,7 @@ export function JoinScreen({
 }: Props) {
   const [name, setName] = useState(initialName)
   const [room, setRoom] = useState(initialRoom)
+  const [passcode, setPasscode] = useState('')
   const [variant, setVariant] = useState(initialVariant || 'v00')
   const [sheet, setSheet] = useState<PickerSheet>(fallbackPicker)
   const [scale, setScale] = useState(() =>
@@ -110,10 +112,16 @@ export function JoinScreen({
     try {
       const chosen = sanitizeVariant(variant)
       persistVariant(chosen)
+      const trimmedPasscode = passcode.trim()
+      if (providerId === 'demo' && trimmedPasscode.length < 1) {
+        setFormError('Enter the passcode.')
+        return
+      }
       onJoin({
         displayName: sanitizeName(name),
         variant: chosen,
         room: sanitizeRoom(room),
+        passcode: providerId === 'demo' ? trimmedPasscode : undefined,
       })
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Check the form and try again')
@@ -158,9 +166,11 @@ export function JoinScreen({
         <div className="join-panel">
           <p className="lede">Same link, same room. Walk up to someone to hear them. Meeting rooms are private.</p>
           <p className="auth-note" data-testid="auth-provider">
-            {providerId === 'dev'
-              ? 'Dev sign-in. Tests and staging use this name entry, not Microsoft SSO.'
-              : 'Microsoft sign-in via Supabase Auth (Entra ID).'}
+            {providerId === 'demo'
+              ? 'Demo sign-in. Enter the shared passcode. Microsoft sign-in is not used.'
+              : providerId === 'dev'
+                ? 'Dev sign-in. Tests and staging use this name entry, not Microsoft SSO.'
+                : 'Microsoft sign-in via Supabase Auth (Entra ID).'}
           </p>
           <label>
             Name
@@ -174,6 +184,21 @@ export function JoinScreen({
               required
             />
           </label>
+          {providerId === 'demo' ? (
+            <label>
+              Passcode
+              <input
+                data-testid="passcode-input"
+                name="passcode"
+                type="password"
+                autoComplete="off"
+                maxLength={128}
+                value={passcode}
+                onChange={(event) => setPasscode(event.target.value)}
+                required
+              />
+            </label>
+          ) : null}
           <label>
             Room
             <input

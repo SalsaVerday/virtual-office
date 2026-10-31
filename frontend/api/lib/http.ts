@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { frontendOrigins } from './config'
 import { ApiError } from './errors'
@@ -43,6 +44,17 @@ async function readBody(req: WithBody): Promise<unknown> {
   }
 }
 
+/** Hash the caller address. The raw IP is not stored and the passcode is not an input. */
+function clientKey(req: IncomingMessage): string {
+  const forwarded = headerValue(req.headers, 'x-forwarded-for')
+  const ip =
+    forwarded?.split(',')[0]?.trim() ||
+    headerValue(req.headers, 'x-real-ip')?.trim() ||
+    req.socket?.remoteAddress ||
+    'unknown'
+  return createHash('sha256').update(ip).digest('hex').slice(0, 32)
+}
+
 function send(res: ServerResponse, status: number, json: Record<string, unknown>, extra: Record<string, string>): void {
   const payload = status === 204 ? '' : JSON.stringify(json)
   res.writeHead(status, {
@@ -82,8 +94,9 @@ export async function handleToken(req: WithBody, res: ServerResponse, env: NodeJ
       authorization: headerValue(req.headers, 'authorization'),
       body,
       env,
+      clientKey: clientKey(req),
     })
-    send(res, result.status, result.json, cors)
+    send(res, result.status, result.json, { ...cors, ...result.headers })
   } catch (error) {
     const status = error instanceof ApiError ? error.status : 500
     const message = error instanceof ApiError ? error.message : 'token service failed'

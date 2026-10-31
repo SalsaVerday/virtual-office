@@ -74,6 +74,13 @@ function attachApi(server: ApiHost): void {
 function officeApi(): Plugin {
   return {
     name: 'office-api',
+    config(_config, env) {
+      const loaded = loadEnv(env.mode, process.cwd(), 'VITE_')
+      const leaked = loaded.VITE_DEMO_PASSCODE?.trim() || process.env.VITE_DEMO_PASSCODE?.trim()
+      if (leaked) {
+        throw new Error('VITE_DEMO_PASSCODE must not be set. The passcode is server-only (DEMO_PASSCODE).')
+      }
+    },
     configureServer(server) {
       attachApi(server)
     },

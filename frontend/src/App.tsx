@@ -41,7 +41,11 @@ export function App() {
     setBusy(true)
     setError(null)
     try {
-      const user = await auth.signIn({ displayName: input.displayName, variant: input.variant })
+      const user = await auth.signIn({
+        displayName: input.displayName,
+        variant: input.variant,
+        passcode: input.passcode,
+      })
       const { OfficeSession: Session } = await import('./net/session')
       const office = new Session(user, audio)
       await office.connect(input.room)

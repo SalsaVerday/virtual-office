@@ -8,11 +8,14 @@ export type TokenCall = {
   authorization?: string
   body: unknown
   env: NodeJS.ProcessEnv
+  /** Opaque per-caller key for demo passcode backoff. Not the passcode. */
+  clientKey?: string
 }
 
 export type TokenResult = {
   status: number
   json: Record<string, unknown>
+  headers?: Record<string, string>
 }
 
 function asRecord(body: unknown): Record<string, unknown> {
@@ -30,7 +33,7 @@ export async function tokenResult(call: TokenCall): Promise<TokenResult> {
   try {
     const config = loadLiveKitConfig(call.env)
     const body = asRecord(call.body)
-    const who = resolveIdentity(call.env, call.authorization, body)
+    const who = await resolveIdentity(call.env, call.authorization, body, call.clientKey)
     const variant = typeof body.variant === 'string' ? body.variant : ''
     const room = typeof body.room === 'string' ? body.room : ''
     const issued = await issueToken(config, {
@@ -41,7 +44,9 @@ export async function tokenResult(call: TokenCall): Promise<TokenResult> {
     })
     return { status: 200, json: issued }
   } catch (error) {
-    if (error instanceof ApiError) return { status: error.status, json: { error: error.message } }
+    if (error instanceof ApiError) {
+      return { status: error.status, json: { error: error.message }, headers: error.headers }
+    }
     console.error(error)
     return { status: 500, json: { error: 'token service failed' } }
   }
