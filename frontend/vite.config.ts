@@ -1,6 +1,10 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { mkdirSync } from 'node:fs'
+import path from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { build } from 'esbuild'
 import react from '@vitejs/plugin-react'
-import { loadEnv, type Plugin, type ViteDevServer } from 'vite'
+import { loadEnv, type Connect, type Plugin, type ViteDevServer } from 'vite'
 import { defineConfig } from 'vitest/config'
 
 function applyServerEnv(mode: string, root: string): void {
@@ -16,23 +20,46 @@ function applyServerEnv(mode: string, root: string): void {
   }
 }
 
-function attachApi(server: ViteDevServer): void {
+type ApiModule = {
+  handleToken: (req: IncomingMessage, res: ServerResponse) => Promise<void>
+  handleHealth: (req: IncomingMessage, res: ServerResponse) => void
+}
+
+type ApiHost = {
+  config: { mode: string; root: string }
+  middlewares: Connect.Server
+  ssrLoadModule?: (id: string) => Promise<ApiModule>
+}
+
+async function loadApiModule(server: ApiHost): Promise<ApiModule> {
+  if (server.ssrLoadModule) return server.ssrLoadModule('/api/lib/http.ts')
+  const cacheDir = path.join(server.config.root, 'node_modules/.cache')
+  mkdirSync(cacheDir, { recursive: true })
+  const outfile = path.join(cacheDir, 'preview-api.mjs')
+  await build({
+    entryPoints: [path.join(server.config.root, 'api/lib/http.ts')],
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    outfile,
+    packages: 'external',
+  })
+  return import(pathToFileURL(outfile).href) as Promise<ApiModule>
+}
+
+function attachApi(server: ApiHost): void {
   applyServerEnv(server.config.mode, server.config.root)
-  type ApiModule = {
-    handleToken: (req: IncomingMessage, res: ServerResponse) => Promise<void>
-    handleHealth: (req: IncomingMessage, res: ServerResponse) => void
-  }
   let loading: Promise<ApiModule> | null = null
   server.middlewares.use(async (req, res, next) => {
-    const path = (req.url ?? '').split('?')[0].replace(/\/$/, '') || '/'
-    if (path !== '/api/token' && path !== '/api/health') {
+    const urlPath = (req.url ?? '').split('?')[0].replace(/\/$/, '') || '/'
+    if (urlPath !== '/api/token' && urlPath !== '/api/health') {
       next()
       return
     }
     try {
-      loading ??= server.ssrLoadModule('/api/lib/http.ts') as Promise<ApiModule>
+      loading ??= loadApiModule(server)
       const mod = await loading
-      if (path === '/api/health') mod.handleHealth(req, res)
+      if (urlPath === '/api/health') mod.handleHealth(req, res)
       else await mod.handleToken(req, res)
     } catch (error) {
       loading = null
@@ -49,6 +76,9 @@ function officeApi(): Plugin {
     name: 'office-api',
     configureServer(server) {
       attachApi(server)
+    },
+    configurePreviewServer(server) {
+      attachApi(server as unknown as ViteDevServer)
     },
   }
 }

@@ -119,7 +119,7 @@ test('30-client proximity load', async ({ browser }) => {
 
 async function runScenario(browser: Browser, mode: ModeName, scenario: ScenarioName): Promise<ScenarioRecord> {
   const placement = placeClients(map, scenario, CLIENTS)
-  const room = `load-${mode.slice(0, 4)}-${scenario.slice(0, 4)}-${Date.now().toString(36)}`
+  const room = (process.env.LOAD_ROOM || `load-${mode.slice(0, 4)}-${scenario.slice(0, 4)}-${Date.now().toString(36)}`).slice(0, 64)
   const pageErrors: string[] = []
   const contexts = []
   const pages: Page[] = []
@@ -299,7 +299,8 @@ async function joinAll(pages: Page[], room: string, subscribeAll: boolean): Prom
 }
 
 async function joinOne(page: Page, room: string, index: number, subscribeAll: boolean): Promise<JoinRow> {
-  const name = `P${String(index).padStart(2, '0')}`
+  const prefix = process.env.LOAD_NAME_PREFIX || 'P'
+  const name = `${prefix}${String(index).padStart(2, '0')}`.slice(0, 24)
   const variant = `v${String(index % 30).padStart(2, '0')}`
   const query = subscribeAll ? '&subscribe=all' : ''
   try {
@@ -310,6 +311,9 @@ async function joinOne(page: Page, room: string, index: number, subscribeAll: bo
     const click = Date.now()
     await page.getByTestId('join').click()
     await page.waitForFunction(() => window.__qa?.ready === true, null, { timeout: 90_000 })
+    if ((await page.getByTestId('mute').getAttribute('aria-pressed')) === 'true') {
+      await page.getByTestId('mute').click()
+    }
     // Stop the map loop so the clients already in the room do not spend the join
     // saturating the CPU. The scenario wakes every loop before it measures.
     await page.evaluate(() => window.__qa?.setRunning(false))

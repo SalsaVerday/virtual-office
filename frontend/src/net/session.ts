@@ -10,6 +10,7 @@ import {
   type RemoteTrackPublication,
   type Track as SdkTrack,
 } from 'livekit-client'
+import { readDevices, writeDevices } from '../audio/devices'
 import { computeHear, zoneAt } from '../audio/proximity'
 import { AudioSubscriptionGate } from '../audio/subscribe'
 import { subscribeAllFromSearch } from '../audio/subscribeMode'
@@ -52,11 +53,14 @@ export type RemotePose = {
   knockUntil: number
 }
 
+export type LinkState = 'connected' | 'reconnecting' | 'offline'
+
 export type OfficeUi = {
   roomName: string
   zoneName: string | null
   status: PresenceStatus
   micEnabled: boolean
+  link: LinkState
   displayName: string
   peers: Array<{
     identity: string
@@ -124,8 +128,15 @@ export class OfficeSession {
   private readonly gains = new Map<string, number>()
   private incoming: Array<{ identity: string; name: string }> = []
   private knockTargets: Array<{ identity: string; name: string }> = []
-  private micEnabled = true
+  private micEnabled = false
+  private link: LinkState = 'connected'
   private warning: string | null = null
+  private rejoinTimer: ReturnType<typeof setTimeout> | null = null
+  private rejoinAttempt = 0
+  private rejoining = false
+  private networkBound = false
+  /** Ignore disconnects until the first connect() has resolved. */
+  private acceptReconnect = false
   private localPose: LocalPose | null = null
   private lastSent: SentPose | null = null
   private lastSentAt = 0
@@ -213,24 +224,15 @@ export class OfficeSession {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
+          deviceId: readDevices().micId || undefined,
         },
       })
-      this.room = room
-      room.on(RoomEvent.DataReceived, this.onData)
-      room.on(RoomEvent.TrackPublished, this.onTrackPublished)
-      room.on(RoomEvent.TrackSubscribed, this.onTrackSubscribed)
-      room.on(RoomEvent.TrackUnsubscribed, this.onTrackUnsubscribed)
-      room.on(RoomEvent.ParticipantConnected, this.onParticipantConnected)
-      room.on(RoomEvent.ParticipantDisconnected, this.onParticipantDisconnected)
-      room.on(RoomEvent.ParticipantAttributesChanged, this.onAttributes)
-      room.on(RoomEvent.Disconnected, this.onDisconnected)
+      this.bindRoom(room)
       await room.connect(url, token, { autoSubscribe: this.subscribeAll, peerConnectionTimeout: 20_000 })
-      try {
-        await room.localParticipant.setMicrophoneEnabled(true)
-        this.micEnabled = true
-      } catch (error) {
-        this.micEnabled = false
-        this.warning = error instanceof Error ? error.message : 'Microphone unavailable'
+      this.micEnabled = false
+      const speakerId = readDevices().speakerId
+      if (speakerId) {
+        await room.switchActiveDevice('audiooutput', speakerId).catch(() => undefined)
       }
       try {
         await room.startAudio()
@@ -251,6 +253,10 @@ export class OfficeSession {
         ms_to_connect: msToConnect,
         error_code: null,
       })
+      this.link = 'connected'
+      this.rejoinAttempt = 0
+      this.acceptReconnect = true
+      this.watchNetwork()
       this.emit(true)
     } catch (error) {
       this.emitUsage('join_failed', {
@@ -268,6 +274,7 @@ export class OfficeSession {
 
   async close(): Promise<void> {
     this.closed = true
+    this.clearRejoin()
     this.endSession('close')
     this.room?.removeAllListeners()
     await this.room?.disconnect()
@@ -683,11 +690,172 @@ export class OfficeSession {
     this.emit(true)
   }
 
-  private onDisconnected = (reason?: DisconnectReason): void => {
-    if (this.closed) return
-    this.warning = 'Disconnected from the office'
-    this.endSession(reason === DisconnectReason.CONNECTION_TIMEOUT ? 'timeout' : 'error')
+  private onReconnecting = (): void => {
+    if (this.closed || !this.acceptReconnect) return
+    this.link = 'reconnecting'
     this.emit(true)
+  }
+
+  private onReconnected = (): void => {
+    if (this.closed || !this.acceptReconnect) return
+    this.link = 'connected'
+    this.rejoinAttempt = 0
+    this.clearRejoin()
+    this.restorePresence()
+    this.emit(true)
+  }
+
+  private onDisconnected = (_reason?: DisconnectReason): void => {
+    if (this.closed || !this.acceptReconnect) return
+    this.link = 'reconnecting'
+    this.emit(true)
+    this.scheduleRejoin()
+  }
+
+  qaLocalMic(): { enabled: boolean; published: boolean } {
+    const pubs = this.room ? [...this.room.localParticipant.audioTrackPublications.values()] : []
+    return {
+      enabled: this.micEnabled,
+      published: pubs.some((pub) => Boolean(pub.track) && !pub.isMuted),
+    }
+  }
+
+  deviceIds(): { micId: string; speakerId: string } {
+    return readDevices()
+  }
+
+  async listDevices(): Promise<{
+    mics: Array<{ deviceId: string; label: string }>
+    speakers: Array<{ deviceId: string; label: string }>
+  }> {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices) {
+      return { mics: [], speakers: [] }
+    }
+    const all = await navigator.mediaDevices.enumerateDevices()
+    const map = (kind: MediaDeviceKind) =>
+      all
+        .filter((device) => device.kind === kind)
+        .map((device) => ({ deviceId: device.deviceId, label: device.label || 'Default device' }))
+    return { mics: map('audioinput'), speakers: map('audiooutput') }
+  }
+
+  async setInputDevice(deviceId: string): Promise<void> {
+    const next = { ...readDevices(), micId: deviceId }
+    writeDevices(next)
+    if (this.room && deviceId) {
+      await this.room.switchActiveDevice('audioinput', deviceId).catch(() => undefined)
+    }
+    this.emit(true)
+  }
+
+  async setOutputDevice(deviceId: string): Promise<void> {
+    const next = { ...readDevices(), speakerId: deviceId }
+    writeDevices(next)
+    if (this.room && deviceId) {
+      await this.room.switchActiveDevice('audiooutput', deviceId).catch(() => undefined)
+    }
+    this.emit(true)
+  }
+
+  private bindRoom(room: Room): void {
+    this.room = room
+    room.on(RoomEvent.DataReceived, this.onData)
+    room.on(RoomEvent.TrackPublished, this.onTrackPublished)
+    room.on(RoomEvent.TrackSubscribed, this.onTrackSubscribed)
+    room.on(RoomEvent.TrackUnsubscribed, this.onTrackUnsubscribed)
+    room.on(RoomEvent.ParticipantConnected, this.onParticipantConnected)
+    room.on(RoomEvent.ParticipantDisconnected, this.onParticipantDisconnected)
+    room.on(RoomEvent.ParticipantAttributesChanged, this.onAttributes)
+    room.on(RoomEvent.Reconnecting, this.onReconnecting)
+    room.on(RoomEvent.Reconnected, this.onReconnected)
+    room.on(RoomEvent.Disconnected, this.onDisconnected)
+  }
+
+  private watchNetwork(): void {
+    if (this.networkBound || typeof window === 'undefined') return
+    this.networkBound = true
+    window.addEventListener('offline', () => {
+      if (this.closed || !this.acceptReconnect) return
+      this.link = 'reconnecting'
+      this.emit(true)
+    })
+    window.addEventListener('online', () => {
+      if (this.closed || !this.acceptReconnect) return
+      if (this.room?.state === ConnectionState.Connected) {
+        this.link = 'connected'
+        this.rejoinAttempt = 0
+        this.emit(true)
+        return
+      }
+      this.scheduleRejoin()
+    })
+  }
+
+  private clearRejoin(): void {
+    if (!this.rejoinTimer) return
+    clearTimeout(this.rejoinTimer)
+    this.rejoinTimer = null
+  }
+
+  private scheduleRejoin(): void {
+    if (this.closed || this.rejoinTimer || this.rejoining) return
+    const delay = Math.min(8_000, 400 * 2 ** this.rejoinAttempt)
+    this.rejoinAttempt += 1
+    if (this.rejoinAttempt > 6) {
+      this.link = 'offline'
+      this.warning = 'Disconnected from the office'
+      this.emit(true)
+      return
+    }
+    this.rejoinTimer = setTimeout(() => {
+      this.rejoinTimer = null
+      void this.rejoin()
+    }, delay)
+  }
+
+  private async rejoin(): Promise<void> {
+    if (this.closed || this.rejoining) return
+    this.rejoining = true
+    this.link = 'reconnecting'
+    this.emit(true)
+    const previous = this.room
+    try {
+      previous?.removeAllListeners()
+      await previous?.disconnect().catch(() => undefined)
+      if (this.room === previous) this.room = null
+      const { token, url } = await this.fetchToken()
+      const saved = readDevices()
+      const room = new Room({
+        adaptiveStream: !this.subscribeAll,
+        dynacast: !this.subscribeAll,
+        audioCaptureDefaults: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          deviceId: saved.micId || undefined,
+        },
+      })
+      this.bindRoom(room)
+      await room.connect(url, token, { autoSubscribe: this.subscribeAll, peerConnectionTimeout: 20_000 })
+      if (saved.speakerId) await room.switchActiveDevice('audiooutput', saved.speakerId).catch(() => undefined)
+      if (this.micEnabled) await room.localParticipant.setMicrophoneEnabled(true).catch(() => undefined)
+      this.link = 'connected'
+      this.rejoinAttempt = 0
+      this.warning = null
+      this.restorePresence()
+    } catch {
+      this.rejoining = false
+      this.scheduleRejoin()
+    } finally {
+      this.rejoining = false
+      this.emit(true)
+    }
+  }
+
+  private restorePresence(): void {
+    void this.publishAttributes()
+    if (this.lastSent) this.flush(this.lastSent, true)
+    else if (this.localPose) this.maybeSend({ ...this.localPose, moving: false })
   }
 
   private async sampleQuality(): Promise<void> {
@@ -879,6 +1047,7 @@ export class OfficeSession {
       zoneName: this.zoneName,
       status: this.status,
       micEnabled: this.micEnabled,
+      link: this.link,
       displayName: this.displayName,
       peers,
       knockTargets: this.knockTargets,

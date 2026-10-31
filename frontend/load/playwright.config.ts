@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { defineConfig } from '@playwright/test'
 
 const frontendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const baseURL = process.env.LOAD_BASE_URL || 'http://127.0.0.1:5173'
 
 const fakeMedia = [
   '--use-fake-device-for-media-stream',
@@ -25,13 +26,15 @@ export default defineConfig({
   retries: 0,
   reporter: [['list']],
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL,
     headless: true,
     viewport: { width: 800, height: 450 },
     launchOptions: { args: fakeMedia },
     permissions: ['microphone'],
   },
-  webServer: {
+  webServer: process.env.LOAD_BASE_URL
+    ? undefined
+    : {
     command: 'npm run dev -- --host 127.0.0.1 --port 5173',
     cwd: frontendRoot,
     url: 'http://127.0.0.1:5173',

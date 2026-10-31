@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { createAuthProvider } from './auth'
 import { roomFromLocation, sanitizeVariant } from './config'
-import { OfficeSession } from './net/session'
+import type { OfficeSession } from './net/session'
 import { AdminScreen } from './ui/AdminScreen'
 import { JoinScreen, type JoinInput } from './ui/JoinScreen'
-import { OfficeScreen } from './ui/OfficeScreen'
+const OfficeScreen = lazy(() => import('./ui/OfficeScreen').then((mod) => ({ default: mod.OfficeScreen })))
 
 export function App() {
   const auth = useMemo(() => createAuthProvider(), [])
@@ -42,7 +42,8 @@ export function App() {
     setError(null)
     try {
       const user = await auth.signIn({ displayName: input.displayName, variant: input.variant })
-      const office = new OfficeSession(user, audio)
+      const { OfficeSession: Session } = await import('./net/session')
+      const office = new Session(user, audio)
       await office.connect(input.room)
       const url = new URL(window.location.href)
       url.searchParams.set('room', input.room)
@@ -76,5 +77,9 @@ export function App() {
     )
   }
 
-  return <OfficeScreen session={session} onLeave={() => void leave()} />
+  return (
+    <Suspense fallback={<p className="hint" data-testid="office-loading">Opening the office…</p>}>
+      <OfficeScreen session={session} onLeave={() => void leave()} />
+    </Suspense>
+  )
 }
