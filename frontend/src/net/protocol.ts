@@ -10,6 +10,8 @@ export type PosMessage = {
   seq: number
   status: PresenceStatus
   variant: string
+  /** Sender clock, milliseconds since epoch. Omitted by older clients. */
+  t?: number
 }
 
 export type SignalMessage = {
@@ -50,6 +52,7 @@ export function parseMessage(bytes: Uint8Array): OfficeMessage | null {
       seq: record.seq,
       status: record.status,
       variant: record.variant,
+      ...(typeof record.t === 'number' && Number.isFinite(record.t) ? { t: record.t } : {}),
     }
   }
   if ((record.kind === 'knock' || record.kind === 'knock-accept') && typeof record.to === 'string') {

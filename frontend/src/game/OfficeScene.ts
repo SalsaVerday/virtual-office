@@ -157,6 +157,15 @@ export class OfficeScene extends Phaser.Scene {
     })
 
     this.game.canvas.dataset.testid = 'office-canvas'
+    // Publish once before the loop starts so a paused map still tells the room where we are.
+    this.session.updateFrame({
+      x: this.player.x,
+      y: this.player.y,
+      dir: this.facing,
+      moving: false,
+      status: this.session.status,
+      variant: this.session.variant,
+    })
     this.installHooks()
   }
 
@@ -227,6 +236,10 @@ export class OfficeScene extends Phaser.Scene {
       getPosition: () => ({ x: this.player.x, y: this.player.y }),
       teleport: (x: number, y: number) => this.teleport(x, y),
       worldToScreen: (x: number, y: number) => this.worldToScreen(x, y),
+      setRunning: (running: boolean) => {
+        if (running) this.game.loop.wake()
+        else this.game.loop.sleep()
+      },
     }
   }
 

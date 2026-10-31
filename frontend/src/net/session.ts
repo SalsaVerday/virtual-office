@@ -11,10 +11,13 @@ import {
   type Track as SdkTrack,
 } from 'livekit-client'
 import { computeHear, zoneAt } from '../audio/proximity'
+import { AudioSubscriptionGate } from '../audio/subscribe'
+import { subscribeAllFromSearch } from '../audio/subscribeMode'
 import { ProximityMixer } from '../audio/mixer'
 import { POS_HEARTBEAT_MS, POS_SEND_INTERVAL_MS, sanitizeRoom, sanitizeVariant } from '../config'
 import { HIDDEN_AWAY_MS, IDLE_AWAY_MS, readDuration, reduceAway, type AwayEvent } from '../presence/autoAway'
-import type { QaParticipant, QaSubscription } from '../qa/types'
+import { qaHooksEnabled } from '../qa/enable'
+import type { QaLoadSnapshot, QaParticipant, QaSampleWindow, QaSubscription } from '../qa/types'
 import type { Direction, PresenceStatus, Zone } from '../types'
 import type { SessionUser } from '../auth/types'
 import { browserLabel, entryFromSearch } from '../usage/browser'
@@ -22,7 +25,9 @@ import { ConversationTracker } from '../usage/conversation'
 import { createEventSink } from '../usage/createSink'
 import { qualityFromStats, type StatRecord } from '../usage/quality'
 import type { StatusSource, UsageEventName, UsageSink } from '../usage/types'
+import { LoadProbe } from './loadProbe'
 import { encodeMessage, parseMessage, type PosMessage } from './protocol'
+import { EMPTY_TRANSPORT, transportFromStats, type TransportSnapshot } from './transportSample'
 
 export type LocalPose = {
   x: number
@@ -138,6 +143,11 @@ export class OfficeSession {
   private presenceAbort: AbortController | null = null
   private awayTimer: ReturnType<typeof setInterval> | null = null
   private qualityTimer: ReturnType<typeof setInterval> | null = null
+  private audioWatch: ReturnType<typeof setInterval> | null = null
+  private readonly audioGate = new AudioSubscriptionGate()
+  private readonly probe = new LoadProbe()
+  /** Dev/staging `?subscribe=all`. Production always uses proximity subscriptions. */
+  private subscribeAll = false
 
   constructor(
     user: SessionUser,
@@ -187,13 +197,18 @@ export class OfficeSession {
       entry: entryFromSearch(search),
     })
     const started = performance.now()
+    this.probe.markJoinStart(started)
     this.emitUsage('join_attempted', { session_id: this.sessionId, ms_to_connect: 0, error_code: null })
     try {
       await this.mixer.resume()
       const { token, url } = await this.fetchToken()
+      this.subscribeAll = subscribeAllFromSearch(search, qaHooksEnabled())
       const room = new Room({
-        adaptiveStream: false,
-        dynacast: false,
+        // Baseline mode matches the previous client: every remote mic stays subscribed.
+        // The default pauses video we do not show (there is none) and, with dynacast,
+        // stops an uplink when nobody is subscribed to it.
+        adaptiveStream: !this.subscribeAll,
+        dynacast: !this.subscribeAll,
         audioCaptureDefaults: {
           echoCancellation: true,
           noiseSuppression: true,
@@ -202,13 +217,14 @@ export class OfficeSession {
       })
       this.room = room
       room.on(RoomEvent.DataReceived, this.onData)
+      room.on(RoomEvent.TrackPublished, this.onTrackPublished)
       room.on(RoomEvent.TrackSubscribed, this.onTrackSubscribed)
       room.on(RoomEvent.TrackUnsubscribed, this.onTrackUnsubscribed)
       room.on(RoomEvent.ParticipantConnected, this.onParticipantConnected)
       room.on(RoomEvent.ParticipantDisconnected, this.onParticipantDisconnected)
       room.on(RoomEvent.ParticipantAttributesChanged, this.onAttributes)
       room.on(RoomEvent.Disconnected, this.onDisconnected)
-      await room.connect(url, token, { autoSubscribe: true, peerConnectionTimeout: 20_000 })
+      await room.connect(url, token, { autoSubscribe: this.subscribeAll, peerConnectionTimeout: 20_000 })
       try {
         await room.localParticipant.setMicrophoneEnabled(true)
         this.micEnabled = true
@@ -224,12 +240,15 @@ export class OfficeSession {
       await this.mixer.resume()
       await this.publishAttributes()
       this.watchPresence()
+      this.watchFirstAudio()
       this.qualityTimer = setInterval(() => {
         void this.sampleQuality()
       }, QUALITY_INTERVAL_MS)
+      const msToConnect = Math.round(performance.now() - started)
+      this.probe.markConnected(msToConnect)
       this.emitUsage('join_succeeded', {
         session_id: this.sessionId,
-        ms_to_connect: Math.round(performance.now() - started),
+        ms_to_connect: msToConnect,
         error_code: null,
       })
       this.emit(true)
@@ -371,6 +390,55 @@ export class OfficeSession {
     return format === 'csv' ? this.usage.exportCsv() : this.usage.exportJson()
   }
 
+  loadSnapshot(): QaLoadSnapshot {
+    return this.probe.snapshot()
+  }
+
+  beginSample(): void {
+    this.stopAudioWatch()
+    this.probe.beginWindow()
+  }
+
+  endSample(): QaSampleWindow {
+    return this.probe.endWindow()
+  }
+
+  async sampleTransport(full = true): Promise<TransportSnapshot> {
+    const room = this.room
+    if (!room) return { ...EMPTY_TRANSPORT }
+    const reports: RTCStatsReport[] = []
+    const tracks: Array<{ getRTCStatsReport(): Promise<RTCStatsReport | undefined> }> = []
+    for (const pub of room.localParticipant.trackPublications.values()) {
+      if (pub.track) tracks.push(pub.track)
+    }
+    if (full) {
+      for (const participant of room.remoteParticipants.values()) {
+        for (const pub of participant.trackPublications.values()) {
+          if (pub.track) tracks.push(pub.track)
+        }
+      }
+    } else {
+      // Sender stats omit inbound audio. One subscribed remote is enough to see the first packet.
+      for (const participant of room.remoteParticipants.values()) {
+        for (const pub of participant.audioTrackPublications.values()) {
+          if (!pub.track) continue
+          tracks.push(pub.track)
+          break
+        }
+        if (tracks.length > 1) break
+      }
+    }
+    for (const track of tracks) {
+      try {
+        const report = await track.getRTCStatsReport()
+        if (report) reports.push(report)
+      } catch {
+        // A missing stats report is not a join failure.
+      }
+    }
+    return transportFromStats(reports)
+  }
+
   private subscriptionRow(participant: RemoteParticipant, pub: RemoteTrackPublication | null): QaSubscription {
     const commanded = this.gains.get(participant.identity) ?? 0
     return {
@@ -431,6 +499,7 @@ export class OfficeSession {
       if (hear.knock) targets.push({ identity: pose.identity, name: pose.name })
       if (hear.gain > 0) heard.push(pose.identity)
     }
+    this.syncAudio(performance.now())
     targets.sort((a, b) => a.name.localeCompare(b.name))
     this.knockTargets = targets
     for (const notice of this.conversations.update(heard, this.zoneName, Date.now())) {
@@ -493,9 +562,10 @@ export class OfficeSession {
   private flush(pose: SentPose, reliable: boolean): void {
     if (!this.room || this.room.state !== ConnectionState.Connected) return
     this.seq += 1
-    const message: PosMessage = { v: 1, kind: 'pos', seq: this.seq, ...pose }
+    const message: PosMessage = { v: 1, kind: 'pos', seq: this.seq, t: Date.now(), ...pose }
     this.lastSent = pose
     this.lastSentAt = performance.now()
+    this.probe.notePosSent()
     this.publish(message, reliable)
   }
 
@@ -526,6 +596,7 @@ export class OfficeSession {
     const message = parseMessage(payload)
     if (!message) return
     if (message.kind === 'pos') {
+      this.probe.notePosReceived(message.t)
       this.applyPose(participant, message)
       return
     }
@@ -574,8 +645,14 @@ export class OfficeSession {
     this.emit(true)
   }
 
+  private onTrackPublished = (publication: RemoteTrackPublication, participant: RemoteParticipant): void => {
+    if (publication.kind !== Track.Kind.Audio) return
+    this.syncParticipant(participant, performance.now())
+  }
+
   private onTrackSubscribed = (track: RemoteTrack, _pub: RemoteTrackPublication, participant: RemoteParticipant): void => {
     if (track.kind !== Track.Kind.Audio) return
+    this.probe.markSubscribed()
     this.mixer.attach(participant.identity, track.mediaStreamTrack)
     const gain = this.gains.get(participant.identity) ?? 0
     this.mixer.setGain(participant.identity, gain)
@@ -595,6 +672,7 @@ export class OfficeSession {
 
   private onParticipantDisconnected = (participant: RemoteParticipant): void => {
     this.poses.delete(participant.identity)
+    this.audioGate.forget(participant.identity)
     this.attributeStatus.delete(participant.identity)
     this.gains.delete(participant.identity)
     this.accepted.delete(participant.identity)
@@ -709,6 +787,53 @@ export class OfficeSession {
     this.awayTimer = null
     if (this.qualityTimer) clearInterval(this.qualityTimer)
     this.qualityTimer = null
+    this.stopAudioWatch()
+    this.audioGate.clear()
+  }
+
+  private syncAudio(now: number): void {
+    const room = this.room
+    if (!room || this.subscribeAll) return
+    for (const pose of this.poses.values()) {
+      const participant = room.remoteParticipants.get(pose.identity)
+      if (participant) this.syncParticipant(participant, now)
+    }
+  }
+
+  private syncParticipant(participant: RemoteParticipant, now: number): void {
+    if (this.subscribeAll) return
+    const gain = this.gains.get(participant.identity) ?? 0
+    const action = this.audioGate.decide(participant.identity, gain, now)
+    if (action === 'hold') return
+    const on = action === 'subscribe'
+    for (const pub of participant.audioTrackPublications.values()) {
+      if (pub.kind !== Track.Kind.Audio || pub.isSubscribed === on) continue
+      pub.setSubscribed(on)
+    }
+  }
+
+  private watchFirstAudio(): void {
+    if (this.audioWatch) return
+    const started = Date.now()
+    this.audioWatch = setInterval(() => {
+      if (this.probe.sawAudio || Date.now() - started > 20_000) {
+        this.stopAudioWatch()
+        return
+      }
+      void this.pollFirstAudio()
+    }, 250)
+  }
+
+  private async pollFirstAudio(): Promise<void> {
+    if (this.probe.sawAudio || this.ended) return
+    const snapshot = await this.sampleTransport(false)
+    if (snapshot.audioBytesReceived > 0 || snapshot.audioPacketsReceived > 0) this.probe.markAudio()
+  }
+
+  private stopAudioWatch(): void {
+    if (!this.audioWatch) return
+    clearInterval(this.audioWatch)
+    this.audioWatch = null
   }
 
   private emitUsage(name: UsageEventName, props: Record<string, unknown>): void {
