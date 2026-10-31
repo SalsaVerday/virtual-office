@@ -1,0 +1,429 @@
+{
+ "image": "avatar_picker.png",
+ "width": 480,
+ "height": 560,
+ "scale": 2,
+ "frame": "idle_down (frame 0)",
+ "cells": [
+  {
+   "id": "v00",
+   "sheet": "assets/sprites/avatar_v00.png",
+   "x": 0,
+   "y": 0,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 8,
+    "y": 2,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v01",
+   "sheet": "assets/sprites/avatar_v01.png",
+   "x": 80,
+   "y": 0,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 88,
+    "y": 2,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v02",
+   "sheet": "assets/sprites/avatar_v02.png",
+   "x": 160,
+   "y": 0,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 168,
+    "y": 2,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v03",
+   "sheet": "assets/sprites/avatar_v03.png",
+   "x": 240,
+   "y": 0,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 248,
+    "y": 2,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v04",
+   "sheet": "assets/sprites/avatar_v04.png",
+   "x": 320,
+   "y": 0,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 328,
+    "y": 2,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v05",
+   "sheet": "assets/sprites/avatar_v05.png",
+   "x": 400,
+   "y": 0,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 408,
+    "y": 2,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v06",
+   "sheet": "assets/sprites/avatar_v06.png",
+   "x": 0,
+   "y": 112,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 8,
+    "y": 114,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v07",
+   "sheet": "assets/sprites/avatar_v07.png",
+   "x": 80,
+   "y": 112,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 88,
+    "y": 114,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v08",
+   "sheet": "assets/sprites/avatar_v08.png",
+   "x": 160,
+   "y": 112,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 168,
+    "y": 114,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v09",
+   "sheet": "assets/sprites/avatar_v09.png",
+   "x": 240,
+   "y": 112,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 248,
+    "y": 114,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v10",
+   "sheet": "assets/sprites/avatar_v10.png",
+   "x": 320,
+   "y": 112,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 328,
+    "y": 114,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v11",
+   "sheet": "assets/sprites/avatar_v11.png",
+   "x": 400,
+   "y": 112,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 408,
+    "y": 114,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v12",
+   "sheet": "assets/sprites/avatar_v12.png",
+   "x": 0,
+   "y": 224,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 8,
+    "y": 226,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v13",
+   "sheet": "assets/sprites/avatar_v13.png",
+   "x": 80,
+   "y": 224,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 88,
+    "y": 226,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v14",
+   "sheet": "assets/sprites/avatar_v14.png",
+   "x": 160,
+   "y": 224,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 168,
+    "y": 226,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v15",
+   "sheet": "assets/sprites/avatar_v15.png",
+   "x": 240,
+   "y": 224,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 248,
+    "y": 226,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v16",
+   "sheet": "assets/sprites/avatar_v16.png",
+   "x": 320,
+   "y": 224,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 328,
+    "y": 226,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v17",
+   "sheet": "assets/sprites/avatar_v17.png",
+   "x": 400,
+   "y": 224,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 408,
+    "y": 226,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v18",
+   "sheet": "assets/sprites/avatar_v18.png",
+   "x": 0,
+   "y": 336,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 8,
+    "y": 338,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v19",
+   "sheet": "assets/sprites/avatar_v19.png",
+   "x": 80,
+   "y": 336,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 88,
+    "y": 338,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v20",
+   "sheet": "assets/sprites/avatar_v20.png",
+   "x": 160,
+   "y": 336,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 168,
+    "y": 338,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v21",
+   "sheet": "assets/sprites/avatar_v21.png",
+   "x": 240,
+   "y": 336,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 248,
+    "y": 338,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v22",
+   "sheet": "assets/sprites/avatar_v22.png",
+   "x": 320,
+   "y": 336,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 328,
+    "y": 338,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v23",
+   "sheet": "assets/sprites/avatar_v23.png",
+   "x": 400,
+   "y": 336,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 408,
+    "y": 338,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v24",
+   "sheet": "assets/sprites/avatar_v24.png",
+   "x": 0,
+   "y": 448,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 8,
+    "y": 450,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v25",
+   "sheet": "assets/sprites/avatar_v25.png",
+   "x": 80,
+   "y": 448,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 88,
+    "y": 450,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v26",
+   "sheet": "assets/sprites/avatar_v26.png",
+   "x": 160,
+   "y": 448,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 168,
+    "y": 450,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v27",
+   "sheet": "assets/sprites/avatar_v27.png",
+   "x": 240,
+   "y": 448,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 248,
+    "y": 450,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v28",
+   "sheet": "assets/sprites/avatar_v28.png",
+   "x": 320,
+   "y": 448,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 328,
+    "y": 450,
+    "w": 64,
+    "h": 96
+   }
+  },
+  {
+   "id": "v29",
+   "sheet": "assets/sprites/avatar_v29.png",
+   "x": 400,
+   "y": 448,
+   "w": 80,
+   "h": 112,
+   "sprite": {
+    "x": 408,
+    "y": 450,
+    "w": 64,
+    "h": 96
+   }
+  }
+ ]
+}

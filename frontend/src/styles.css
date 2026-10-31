@@ -20,12 +20,86 @@ button, input {
 
 .join {
   min-height: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px 48px;
+  background: #2b2135;
+}
+
+.join-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: min(100%, 1280px);
+}
+
+.splash {
+  position: relative;
+  flex: none;
+  background-color: #2b2135;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.safe {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.safe h1 {
+  margin: 0;
+  color: #2b2135;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.safe .primary {
+  border-radius: 0;
+  line-height: 1;
+}
+
+.join-panel {
+  width: min(100%, 520px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.avatar-grid {
   display: grid;
-  place-items: center;
-  padding: 32px 16px;
-  background:
-    radial-gradient(circle at top, #3a2c40, transparent 55%),
-    #1c1722;
+  grid-template-columns: repeat(6, max-content);
+  gap: 6px;
+  justify-content: start;
+}
+
+.avatar-option {
+  position: relative;
+  padding: 0;
+  border: 2px solid transparent;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  cursor: pointer;
+}
+
+.avatar-option.on {
+  border-color: #4f9a8e;
+}
+
+.avatar-option-hit {
+  position: absolute;
+  inset: 0;
 }
 
 .card {
@@ -113,15 +187,65 @@ input {
 .hud-meta strong { color: #f4ead6; font-weight: 650; }
 .hint { margin: 0; color: #b3a1a3; font-size: 12px; flex-basis: 100%; }
 
+.settings {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.settings label {
+  min-width: 220px;
+}
+
+.settings select {
+  background: #1c1722;
+  border: 1px solid #7d6b78;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
 .status { display: flex; gap: 4px; }
 
 .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: transparent;
   border: 1px solid #7d6b78;
   border-radius: 999px;
   padding: 4px 10px;
   cursor: pointer;
 }
+
+.icon {
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  background-image: url('/assets/ui/status_icons.png');
+  background-repeat: no-repeat;
+  background-size: 160px 32px;
+  image-rendering: pixelated;
+  flex: none;
+}
+
+.icon-0 { background-position: 0 0; }
+.icon-1 { background-position: -32px 0; }
+.icon-2 { background-position: -64px 0; }
+.icon-3 { background-position: -96px 0; }
+.icon-4 { background-position: -128px 0; }
+
+.icon.sm {
+  width: 16px;
+  height: 16px;
+  background-size: 80px 16px;
+}
+
+.icon.sm.icon-0 { background-position: 0 0; }
+.icon.sm.icon-1 { background-position: -16px 0; }
+.icon.sm.icon-2 { background-position: -32px 0; }
+.icon.sm.icon-3 { background-position: -48px 0; }
+.icon.sm.icon-4 { background-position: -64px 0; }
 
 .chip.on {
   background: #f4ead6;
@@ -174,4 +298,50 @@ input {
 .roster h2 { margin: 0 0 6px; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: #b3a1a3; }
 .roster ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .roster li { display: flex; flex-direction: column; font-size: 13px; }
+.who { display: inline-flex; align-items: center; gap: 6px; }
 .peer-meta, .roster em { color: #b3a1a3; font-style: normal; font-size: 11px; }
+
+.admin {
+  min-height: 100%;
+  padding: 32px 16px 64px;
+  background:
+    radial-gradient(circle at top, #3a2c40, transparent 55%),
+    #1c1722;
+}
+
+.admin-card {
+  width: min(880px, 100%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-card h1 { margin: 0; font-size: 28px; }
+.admin-card h2 { margin: 8px 0 0; font-size: 16px; }
+.admin-back { color: #b3a1a3; font-size: 13px; }
+
+.admin-card table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #2b2135;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.admin-card th,
+.admin-card td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid #4a3f55;
+}
+
+.admin-card th {
+  color: #b3a1a3;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 650;
+}
+
+.admin-card code { color: #f4ead6; }

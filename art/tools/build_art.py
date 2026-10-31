@@ -324,8 +324,8 @@ def build_map():
        "width":MW,"height":MH,"tilewidth":T,"tileheight":T,"compressionlevel":-1,"nextlayerid":lid+1,"nextobjectid":len(objs)+1,
        "layers":layers,"tilesets":[ts("office_floor_walls",None,1,FW_NAMES,8,3,{"collision"}),ts("office_props",None,PFG,PR_NAMES,8,6,set())]}
     return m
-def tsx(name,names,rows):
-    t="\n".join(f' <tile id="{i}"><properties><property name="name" value="{n}"/></properties></tile>' for i,n in enumerate(names))
+def tsx(name,names,rows,collide=()):
+    t="\n".join(f' <tile id="{i}"><properties><property name="name" value="{n}"/>{'<property name="collides" type="bool" value="true"/>' if n in collide else ''}</properties></tile>' for i,n in enumerate(names))
     return f'''<?xml version="1.0" encoding="UTF-8"?>
 <tileset version="1.10" tiledversion="1.10.2" name="{name}" tilewidth="32" tileheight="32" spacing="0" margin="0" tilecount="{len(names)}" columns="8">
  <image source="{name}.png" width="256" height="{rows*32}"/>
@@ -358,7 +358,7 @@ def main():
     os.chdir(ROOT)
     fw=build_floor_walls(); fw.save(P("tilesets","office_floor_walls.png"))
     pr=build_props(); pr.save(P("tilesets","office_props.png"))
-    open(P("tilesets","office_floor_walls.tsx"),"w").write(tsx("office_floor_walls",FW_NAMES,3))
+    open(P("tilesets","office_floor_walls.tsx"),"w").write(tsx("office_floor_walls",FW_NAMES,3,{"collision"}))
     open(P("tilesets","office_props.tsx"),"w").write(tsx("office_props",PR_NAMES,6))
     vs=variants(30); json.dump(vs,open(P("sprites","variants.json"),"w"),indent=1)
     sheets=[]

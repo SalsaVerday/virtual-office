@@ -5,6 +5,7 @@ import { MOVE_SPEED } from '../config'
 import type { OfficeSession } from '../net/session'
 import type { Direction } from '../types'
 import { zonesFromTiled, type TiledZoneObject } from './zones'
+import { zoneTarget } from './zoneLink'
 import { findPath } from './pathfinding'
 import { desiredVelocity, steerToward } from './movement'
 import {
@@ -131,6 +132,8 @@ export class OfficeScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels)
     this.physics.add.collider(this.player, collision)
     playAvatar(this.player, this.session.variant, 'down', false)
+    const linked = zoneTarget(window.location.search, zones)
+    if (linked) this.teleport(linked.x, linked.y)
 
     this.label = makeNameTag(this, this.session.displayName)
     this.icon = this.add.sprite(spawn.x, spawn.y - 46, 'status', 0).setOrigin(0.5, 0.5)
@@ -157,6 +160,15 @@ export class OfficeScene extends Phaser.Scene {
     })
 
     this.game.canvas.dataset.testid = 'office-canvas'
+    // Publish once before the loop starts so a paused map still tells the room where we are.
+    this.session.updateFrame({
+      x: this.player.x,
+      y: this.player.y,
+      dir: this.facing,
+      moving: false,
+      status: this.session.status,
+      variant: this.session.variant,
+    })
     this.installHooks()
   }
 
@@ -227,6 +239,10 @@ export class OfficeScene extends Phaser.Scene {
       getPosition: () => ({ x: this.player.x, y: this.player.y }),
       teleport: (x: number, y: number) => this.teleport(x, y),
       worldToScreen: (x: number, y: number) => this.worldToScreen(x, y),
+      setRunning: (running: boolean) => {
+        if (running) this.game.loop.wake()
+        else this.game.loop.sleep()
+      },
     }
   }
 

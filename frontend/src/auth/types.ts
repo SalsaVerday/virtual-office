@@ -1,10 +1,12 @@
-export type AuthProviderId = 'dev' | 'supabase'
+export type AuthProviderId = 'dev' | 'azure'
 
 export type SessionUser = {
   userId: string
   displayName: string
   variant: string
   provider: AuthProviderId
+  /** Supabase access token. Present only for the Azure provider. The token route verifies it. */
+  accessToken?: string
 }
 
 export type SignInInput = {
@@ -13,9 +15,9 @@ export type SignInInput = {
 }
 
 /**
- * Swappable sign-in. Phase 1 uses {@link DevAuthProvider}.
- * Microsoft Entra ID arrives as {@link SupabaseAuthProvider} (Supabase Azure provider)
- * without changing the office or LiveKit call sites.
+ * Swappable sign-in. `VITE_AUTH_PROVIDER=dev` (the default) is name entry.
+ * `VITE_AUTH_PROVIDER=azure` is Microsoft Entra ID through Supabase Auth.
+ * See docs/auth-plan.md.
  */
 export interface AuthProvider {
   readonly id: AuthProviderId

@@ -31,6 +31,9 @@ async function join(page: Page, room: string, name: string, variant: string) {
   await page.getByTestId(`variant-${variant}`).click()
   await page.getByTestId('join').click()
   await page.waitForFunction(() => window.__qa?.ready === true, null, { timeout: 30_000 })
+  if ((await page.getByTestId('mute').getAttribute('aria-pressed')) === 'true') {
+    await page.getByTestId('mute').click()
+  }
 }
 
 async function teleport(page: Page, x: number, y: number) {
@@ -75,7 +78,9 @@ async function waitGain(page: Page, name: string, min: number, max: number) {
   await page.waitForFunction(
     ({ name, min, max }) => {
       const sub = window.__qa?.subscriptions.find((entry) => entry.name === name)
-      if (!sub?.subscribed || sub.appliedGain == null) return false
+      if (!sub) return false
+      if (max <= 0.05 && !sub.subscribed) return true
+      if (!sub.subscribed || sub.appliedGain == null) return false
       return sub.gain >= min && sub.gain <= max && sub.appliedGain >= min && sub.appliedGain <= max
     },
     { name, min, max },

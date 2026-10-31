@@ -28,5 +28,15 @@ export default defineConfig({
     url: 'http://127.0.0.1:5173',
     reuseExistingServer: true,
     timeout: 60_000,
+    env: {
+      ...process.env,
+      NODE_ENV: 'development',
+      VERCEL_ENV: 'development',
+      LIVEKIT_URL: process.env.LIVEKIT_URL ?? 'ws://localhost:7880',
+      LIVEKIT_API_KEY: process.env.LIVEKIT_API_KEY ?? 'devkey',
+      LIVEKIT_API_SECRET: process.env.LIVEKIT_API_SECRET ?? 'secret',
+      AUTH_PROVIDER: process.env.AUTH_PROVIDER ?? 'dev',
+      VITE_ADMIN: process.env.VITE_ADMIN ?? 'true',
+    },
   },
 })

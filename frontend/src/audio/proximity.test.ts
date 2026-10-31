@@ -96,6 +96,18 @@ describe('proximity', () => {
       knock: true,
     })
     expect(computeHear(online(720, 496), focused, zones, true).gain).toBe(1)
-    expect(computeHear(focused, online(720, 496), zones, false).knock).toBe(false)
+    expect(computeHear(focused, online(720, 496), zones, false)).toMatchObject({
+      gain: 0,
+      reason: 'focus',
+      knock: false,
+    })
+    expect(computeHear(focused, online(720, 496), zones, true).gain).toBe(1)
+  })
+})
+
+describe('tileset contract', () => {
+  it('sets collides=true on collision tile 11 in the tsx the artist ships', () => {
+    const tsx = readFileSync(new URL('../../public/assets/tilesets/office_floor_walls.tsx', import.meta.url), 'utf8')
+    expect(tsx).toMatch(/<tile id="11">[\s\S]*name="collides" type="bool" value="true"/)
   })
 })

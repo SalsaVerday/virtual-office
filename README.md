@@ -8,9 +8,11 @@ This is an internal tool, not a product. Text chat, recordings, AI, mobile, a ma
 
 | Path | What |
 | --- | --- |
-| `frontend/` | Vite + React UI, Phaser map. Static build for Vercel. |
-| `backend/` | Node token service. Mints LiveKit access tokens. |
+| `frontend/` | Vite + React UI, Phaser map, and the Vercel project root. |
+| `frontend/api/` | Vercel serverless functions. `POST /api/token` mints LiveKit tokens. `GET /api/health` is a liveness check. |
 | `frontend/public/assets/` | **Art root.** Drop-in tiles, map, sprites, and UI. |
+| `supabase/migrations/` | SQL for users, rooms, presence, sessions, and usage events. |
+| `docs/auth-plan.md` | How `/api/token` checks a Supabase session once Azure sign-in is on. |
 | `art/docs/spec.md` | Art contract (load snippets, frame layout). |
 | `art/tools/build_art.py` | Artist's generator. It writes a pack under `art/`, not into `public/`. |
 
@@ -22,9 +24,9 @@ The map is always `frontend/public/assets/maps/office.json`. The LiveKit room na
 - LiveKit for microphone audio and for position sync. Positions are data messages on the topic `pos`. There is no game server.
 - While someone is moving, their client sends at **10 Hz** (unreliable), plus an immediate reliable packet when they stop or change status. Idle clients heartbeat at **0.5 Hz**. At 30 people that is a few hundred small JSON packets per second per client, not 30 × 60.
 - Other clients interpolate. A jump over 160px snaps, so teleports don't slide across the building.
-- The token service is the only place that sees the LiveKit API secret.
+- The token function is the only place that sees the LiveKit API secret. It lives in the same Vercel project as the frontend. There is no separate token process.
 
-Auth, presence status, Teams, and usage metrics have seams and are not finished. See below.
+Status (online, away, focus), focus knock, and usage events are implemented. Microsoft sign-in is scaffolded and off by default. Teams and the admin view are not started. See below.
 
 ## Local setup
 
@@ -44,21 +46,19 @@ chmod +x scripts/run-livekit.sh
 livekit-server --dev --bind 127.0.0.1 --node-ip 127.0.0.1
 ```
 
-On another OS, install `livekit-server` from the [LiveKit releases](https://github.com/livekit/livekit/releases) and run that same command. `--dev` uses LiveKit's published local key pair, API key `devkey` and secret `secret`. Those are local-only defaults, not a cloud credential, and they are not written into a committed env file. The token service uses them when `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET` are unset. Production refuses that secret.
+On another OS, install `livekit-server` from the [LiveKit releases](https://github.com/livekit/livekit/releases) and run that same command. `--dev` uses LiveKit's published local key pair, API key `devkey` and secret `secret`. Those are local-only defaults, not a cloud credential. Copy `frontend/.env.example` to `frontend/.env.local` (gitignored) so the dev server can see them. `/api/token` does not invent a token when they are missing. Production refuses that secret.
 
 `docker compose up` is an alternative if you already have Docker. WebRTC from a container is fussier; the binary path is the one the Playwright test uses.
 
-In a second terminal:
+In a second terminal, from the repo root:
 
 ```bash
-npm run dev:backend
+npm run dev
 ```
 
-In a third:
+That is the Vite dev server on http://127.0.0.1:5173 . It also serves `POST /api/token` and `GET /api/health` with the same handler Vercel runs (`frontend/api/token.ts`). You do not start a second Node process.
 
-```bash
-npm run dev:frontend
-```
+`npx vercel dev` from `frontend/` is the closer match to a Vercel deployment (it needs the Vercel CLI, and it may ask you to log in). Playwright and the steps above use `npm run dev`, which does not.
 
 Open http://127.0.0.1:5173 , enter a name, pick a color, and join. Share `http://127.0.0.1:5173/?room=office` (or any room name of letters, numbers, `_`, and `-`). Open it in a second browser profile and walk.
 
@@ -66,36 +66,38 @@ The dev server enables the QA hooks below. Production builds do not.
 
 ### Environment variables
 
-Nothing secret is committed. `.gitignore` ignores `.env*` except `*.env.example`. Copy the examples to a gitignored file if you want, or export the variables in the shell.
+Nothing secret is committed. `.gitignore` ignores `.env*` except `*.env.example`. Copy `frontend/.env.example` to `frontend/.env.local`, or export the variables in the shell. One Vercel project holds both the static app and the functions, so server variables and `VITE_` variables live in that project's environment. `VITE_` values are baked into the browser bundle. Never put the LiveKit secret, the Supabase JWT secret, a service role key, or an Azure client secret in a `VITE_` variable.
 
-**Backend** (`backend/.env.example`)
+The full list for LiveKit Cloud, Supabase, Entra, and Vercel is in the table below. Azure's client id and client secret are configured in the Supabase dashboard, not as variables in this repo.
 
-| Variable | Local `--dev` | Later (LiveKit Cloud) |
-| --- | --- | --- |
-| `LIVEKIT_URL` | `ws://localhost:7880` (default) | `wss://<project>.livekit.cloud` — must be reachable from the browser |
-| `LIVEKIT_API_KEY` | unset, service uses LiveKit's `--dev` key | Cloud API key |
-| `LIVEKIT_API_SECRET` | unset, service uses LiveKit's `--dev` secret | Cloud API secret |
-| `PORT` | `3001` | wherever you host the token service |
-| `FRONTEND_ORIGIN` | `http://localhost:5173,http://127.0.0.1:5173` | the Vercel origin, comma-separated if you have more than one |
-| `NODE_ENV` | unset | `production` refuses the dev secret and refuses to start without all three LiveKit variables |
+| Variable | Where | Local | Cloud |
+| --- | --- | --- | --- |
+| `LIVEKIT_URL` | server | `ws://localhost:7880` | `wss://<project>.livekit.cloud` |
+| `LIVEKIT_API_KEY` | server | `devkey` (LiveKit `--dev`) | Cloud API key |
+| `LIVEKIT_API_SECRET` | server | `secret` (LiveKit `--dev`) | Cloud API secret. Production refuses `secret` and any secret shorter than 32 characters |
+| `FRONTEND_ORIGIN` | server | `http://localhost:5173,http://127.0.0.1:5173` | The Vercel origin, comma-separated if you have more than one |
+| `VITE_TOKEN_URL` | browser | unset. The page calls same-origin `/api/token` | Unset on Vercel. Set an absolute URL only if the function is hosted somewhere else |
+| `VITE_AUTH_PROVIDER` | browser | `dev` (name entry) | `azure` turns on Entra sign-in. `dev` stays the staging test path |
+| `AUTH_PROVIDER` | server | unset or `dev` | `azure` gates `/api/token` on a Supabase JWT. Must match the client flag |
+| `VITE_SUPABASE_URL` | browser | unset | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | browser | unset | Supabase anon key (public by design) |
+| `SUPABASE_URL` | server | unset | Same project URL, used to check the JWT issuer |
+| `SUPABASE_JWT_SECRET` | server | unset | Legacy JWT secret. Required when `AUTH_PROVIDER=azure`. Not a `VITE_` variable |
+| `AZURE_TENANT_ID` | server | unset | Entra tenant id. Required when `AUTH_PROVIDER=azure`. The token's `tenant_id` claim must match |
+| `ALLOW_DEV_LOGIN` | server | unset | `true` only on a Vercel **preview** deployment so staging QA can still use the name form. Ignored when `VERCEL_ENV=production` |
+| `VITE_QA_HOOKS` | browser | unset (on in dev) | `true` for `vite build --mode staging`. Production builds ignore it |
+| `VITE_IDLE_MS`, `VITE_HIDDEN_MS` | browser | unset (3 min idle, 20 s hidden) | Optional overrides for auto-away |
 
-**Frontend** (`frontend/.env.example`)
-
-| Variable | Local | Notes |
-| --- | --- | --- |
-| `VITE_TOKEN_URL` | unset | Vite proxies `/api/token` to port 3001. Set an absolute URL when the frontend is hosted elsewhere. |
-| `VITE_AUTH_PROVIDER` | `dev` | `supabase` selects the Entra ID seam. Phase 1 and tests stay on `dev`. |
-| `VITE_QA_HOOKS` | unset | Dev server and `vite build --mode staging` install hooks unless this is `false`. `vite build` (production mode) never installs them, even if this is `true`. |
-| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | unset | Host env only, when Azure sign-in is turned on. The Azure client secret stays in Supabase, not here. |
+Missing `LIVEKIT_URL`, `LIVEKIT_API_KEY`, or `LIVEKIT_API_SECRET` makes `/api/token` return an error and no token, including in local dev. With Supabase unset, usage events stay in `localStorage` (`vo.events.v1`). Dev and staging builds also expose them on `window.__qa`.
 
 ## How to walk and talk
 
 - **WASD** or arrow keys move. **Click** the floor to pathfind around the collision layer.
-- Your avatar is one of `avatar_v00`–`avatar_v29` (the color picker). A name tag and a status icon sit above the head.
-- **Proximity.** Full volume within 96px (3 tiles). Volume eases to silence at 288px (9 tiles). Past that, the gain is 0.
-- **Focus.** The Focus control stops proximity audio. Someone who walks up sees a knock prompt instead of hearing you. Let them in and normal proximity applies for the rest of the session. A meeting room still connects without a knock: walking in is the join.
-- **Away** only changes the icon.
-- **Mute** stops your microphone. It does not change how you hear others.
+- Your avatar is one of `avatar_v00`–`avatar_v29`, chosen on the join screen. A name tag and a status icon sit above the head.
+- **Proximity.** Full volume within 96px (3 tiles). Volume eases to silence at 288px (9 tiles). Past that, the gain is 0 and the client drops the microphone subscription after a 750ms grace period, so a quiet room does not keep every track open. Dev and staging builds accept `?subscribe=all` to restore the old subscribe-to-everyone behavior for the load-test baseline. Production ignores that flag.
+- **Focus.** The Focus control stops proximity audio in both directions. Someone who walks up sees a knock prompt instead of hearing you. Let them in and normal proximity applies for the rest of the session. Ignore dismisses the prompt and leaves audio closed. A meeting room still connects without a knock: walking in is the join.
+- **Away.** Changes the icon. After 3 minutes without input, or 20 seconds in a hidden tab, Online becomes Away on its own. Focus is left alone, and an Away you picked yourself stays until you change it. Coming back clears an automatic Away. Status is published on the position packets and as LiveKit participant attributes (`status`, `variant`).
+- **Mute.** The microphone is off when you join. Unmute publishes it. Mute stops it again. It does not change how you hear others. Settings remembers the microphone and speaker.
 
 Squad areas, the lounge, and the standup circle are open space. Only `meeting` zones are private.
 
@@ -125,7 +127,13 @@ frontend/public/assets/maps/office.json
 frontend/public/assets/sprites/avatar_v00.png … avatar_v29.png
 frontend/public/assets/sprites/variants.json
 frontend/public/assets/ui/status_icons.png
+frontend/public/assets/ui/join_splash.png
+frontend/public/assets/ui/join_splash@4x.png
+frontend/public/assets/ui/avatar_picker.png
+frontend/public/assets/ui/avatar_picker.json
 ```
+
+Favicons and the web manifest live in `frontend/public/` (`favicon.ico`, `favicon-16.png`, `favicon-32.png`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `site.webmanifest`). Teams icons live in `teams/` at the repo root and are not served by the site.
 
 Phaser is configured with `pixelArt: true` and `roundPixels: true`. Tiles are 32×32 with no margin or spacing. The camera zoom is 2 (integer). Embedded tileset image paths are ignored; the scene calls `addTilesetImage` with the keys `office_floor_walls` and `office_props`.
 
@@ -137,16 +145,11 @@ Avatars are 32×48, origin `(0.5, 44/48)`, walk animation 8 fps. Rows are down, 
 
 ### Notes for the artist
 
-Verified by loading `office.json` in Phaser (48×30, tile 32, both tilesets linked at 256×96 and 256×192, avatar frames 32×48, status frames 16×16, all 9 zones). These do not break the office, but they disagree with the spec:
-
-1. **`office_floor_walls.tsx` tile id 11 (`collision`) does not set `collides=true`.** The embedded tileset inside `maps/office.json` does. Re-embedding from the `.tsx` would drop the property. The game blocks on every non-empty collision-layer tile, so movement still works.
-2. **`standup_marker` (gid 39) is on `props_below`, not on `floor`.** The rug (gids 58–66) is on `floor`, as specified. The marker still draws underneath avatars because `props_below` is below the avatar depth band.
-
-No wrong frame sizes, missing textures, or bad tileset keys showed up at load time.
+`office_floor_walls.tsx` tile id 11 (`collision`) sets `collides=true`, matching the embedded tileset in `maps/office.json`. `standup_marker` (gid 39) sits on `props_below` as a walkable 2×2 at tiles (23–24, 15–16). The rug stays on `floor`. `art/docs/spec.md` and `art/tools/build_art.py` describe that. The map JSON itself is unchanged.
 
 ## Running for QA
 
-Phase 1 is the dev server plus the local LiveKit dev server. A staging LiveKit project and a staging URL are phase 2 (see the PR).
+Local QA is the Vite dev server (which serves `/api/token`) plus the local LiveKit dev server. Copy `frontend/.env.example` to `frontend/.env.local` first, or the token route fails closed. A staging LiveKit project is a hosted env change, not a second process in this repo.
 
 Hooks (`window.__qa`) are on when you run `npm run dev` (Vite mode `development`) or `npm run build:staging` (`vite build --mode staging`), unless `VITE_QA_HOOKS=false`. They are omitted from production builds (`vite build`, mode `production`) even if the variable is set. The dev name form is the only sign-in QA needs. Do not point tests at Microsoft SSO.
 
@@ -154,18 +157,15 @@ Terminals, from the repo root:
 
 ```bash
 npm install
+cp frontend/.env.example frontend/.env.local
 ./scripts/run-livekit.sh
 ```
 
 ```bash
-npm run dev:backend
+npm run dev
 ```
 
-```bash
-npm run dev:frontend
-```
-
-No env vars are required for that local trio. The token service falls back to LiveKit's `--dev` key pair, and the frontend proxies `/api/token`.
+`frontend/.env.local` holds the published `--dev` key pair. Playwright's config sets that same pair when it starts the dev server, so `npm run e2e -w frontend` does not need the file.
 
 Playwright (Chromium) with fake media, from `frontend/` after `npx playwright install chromium`:
 
@@ -189,7 +189,7 @@ await page.getByTestId('join').click()
 await page.waitForFunction(() => window.__qa?.ready === true)
 ```
 
-`frontend/playwright.config.ts` launches Chromium with those fake-media flags. With LiveKit and the backend already running:
+`frontend/playwright.config.ts` launches Chromium with those fake-media flags. With LiveKit already running (the dev server starts itself, including `/api/token`):
 
 ```bash
 npm run e2e -w frontend
@@ -207,6 +207,11 @@ Live getters. Read them again each time; do not cache the object you got from `.
 | --- | --- |
 | `ready` | `true` once the map is up |
 | `userId` | LiveKit identity (`dev:` + id) |
+| `sessionId` | Id for this page's usage events |
+| `status`, `statusSource` | `online` / `away` / `focus`, and `manual` / `idle` / `teams` |
+| `knocks` | `{ targets, incoming, accepted }` for the knock prompt |
+| `events` | Usage events recorded in the local sink |
+| `exportEvents('json' \| 'csv')` | Dev/staging export of that sink |
 | `position` | `{ x, y }` feet in map pixels |
 | `teleport(x, y)` | Move there and publish immediately. A point inside a wall can be pushed out by collision. |
 | `zoneName` | Tiled zone name, or `null` in the hallway. The HUD shows "Hallway" for null. |
@@ -222,40 +227,54 @@ Live getters. Read them again each time; do not cache the object you got from `.
 | `display-name` | Name field |
 | `room-name` | Room field on the join form |
 | `join` | Join button |
-| `variant-v00` … `variant-v29` | Color |
+| `avatar-picker` | Avatar grid on the join screen |
+| `avatar-option-v00` … `avatar-option-v29` | One avatar in that grid |
+| `variant-v00` … `variant-v29` | Same choice, kept for the existing join helpers |
 | `auth-provider` | Text that this build is dev sign-in |
 | `current-room` | LiveKit room label |
 | `zone-name` | Zone label (`Hallway` when `zoneName` is null) |
 | `status`, `status-online`, `status-away`, `status-focus` | Status |
 | `mute` | Mute / unmute |
 | `share-link` | Copy `?room=` link |
-| `knock`, `knock-accept`, `knock-prompt`, `incoming-knock` | Focus knock |
+| `knock`, `knock-accept`, `knock-ignore`, `knock-prompt`, `incoming-knock`, `knock-icon` | Focus knock |
+| `status-icon` | Icon on the selected status chip |
 | `office-stage`, `office-canvas` | Map |
 | `roster` | Who is here |
 
 ## What is only a seam
 
-- **Microsoft sign-in.** `createAuthProvider()` returns dev name entry, or `SupabaseAuthProvider` when `VITE_AUTH_PROVIDER=supabase`. That provider calls `signInWithOAuth({ provider: 'azure' })`. No Azure app is wired up.
-- **Status.** Online, away, and focus are on the avatar and in the position messages. Focus changes who you can hear. Nothing marks you away automatically.
-- **Teams.** Not started. Slack is out. A later tab or bot should deep-link to `/?room=` and mirror status. It should not replace LiveKit audio.
-- **Usage.** `frontend/src/metrics.ts` is a no-op sink with events for session start, presence time, and a proximity conversation. Nothing is stored.
+- **Microsoft sign-in.** `createAuthProvider()` returns dev name entry, or the Supabase Azure provider when `VITE_AUTH_PROVIDER=azure` (`supabase` is an alias). The token route enforces the same choice with `AUTH_PROVIDER`. See `docs/auth-plan.md`. No Azure app is wired up in this repo.
+- **Teams.** `teams/manifest.json` is a sideload package for a **Join standup** tab (`/?zone=standup&entry=teams_tab`). Build the zip with `./scripts/package-teams.sh`. See `docs/teams-sideload.md`. Slack is out. A later bot can call `setStatus(status, 'teams')`. It should not replace LiveKit audio.
+- **Admin view.** `/admin` is not in the office HUD. `VITE_ADMIN=true` opens it in dev and staging. Azure sign-in will pass `users.is_admin` instead; a known false denies the page even if the flag is set. It reads the local event sink today, through the same sink interface that reads `usage_events` once Supabase is configured.
+
+## Usage events
+
+`createEventSink()` writes every event to `localStorage` (`vo.events.v1`, capped at 1000). When `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are both set, it also inserts into `usage_events` (and stubs `users` / `sessions` / `presence`). A `dev:` identity is stored as a UUIDv5 of that string so the row fits `users.id`. The LiveKit identity stays `dev:…`. A failed Supabase write is logged and does not break the office.
+
+Events: `session_started`, `session_ended`, `join_attempted`, `join_succeeded`, `join_failed`, `status_changed`, `room_entered`, `room_left`, `conversation_started`, `conversation_ended`, `knock_sent`, `knock_answered`, `av_quality_sample`. A conversation is you plus at least one person in audio range. Duration is always stored. `props.counts` is true only when `duration_s` is at least 30. The participant with the lowest id emits the pair, so it is not stored twice. Audio quality is sampled every 30 seconds from LiveKit's WebRTC stats.
+
+Apply `supabase/migrations/20261031120000_phase2_instrumentation.sql` when a Supabase project exists. Until then the app does not need the database.
 
 ## Deploying later
 
-The frontend build is `frontend/dist` (`npm run build -w frontend`). Vercel should use root directory `frontend`, output `dist`, and no special rewrites (`?room=` is a query string).
+Vercel project root is **`frontend`** (framework Vite). `frontend/api/token.ts` and `frontend/api/health.ts` deploy as serverless functions next to `frontend/dist`. `?room=` is a query string. `frontend/vercel.json` rewrites other paths to `index.html` and leaves `/api` and `/assets` alone.
 
-Do not put the LiveKit secret, a Supabase service role key, or an Azure client secret in the frontend or in git. The token route is **unauthenticated** in phase 1: anyone who can reach it can join a room. That is fine on localhost. It is not fine on the public internet until the route checks a real session.
+Do not put the LiveKit secret, a Supabase service role key, the JWT secret, or an Azure client secret in git or in a `VITE_` variable. With `AUTH_PROVIDER=dev` the token route still trusts the identity in the body. Use that on localhost and on the staging preview (with `ALLOW_DEV_LOGIN=true` if the server flag is already `azure`). Set `AUTH_PROVIDER=azure` before the production URL is public. See `docs/auth-plan.md`.
 
-Production (`NODE_ENV=production`) will not boot on the dev key pair.
+Production (`NODE_ENV=production` or `VERCEL_ENV=production`) refuses the dev secret.
 
-Switching to LiveKit Cloud is three backend env vars (`LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`) plus `VITE_TOKEN_URL` and `FRONTEND_ORIGIN` for the hosted pages. Browsers need `https` for the microphone; Vercel provides that. The URL in the token response must be the public `wss://` host, not `ws://localhost` and not a Docker-only hostname.
+LiveKit Cloud is `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` on the Vercel project. Leave `VITE_TOKEN_URL` unset so the browser calls same-origin `/api/token`. Browsers need `https` for the microphone; Vercel provides that. The URL in the token response must be the public `wss://` host, not `ws://localhost` and not a Docker-only hostname.
 
-QA staging (phase 2) wants its own LiveKit project (or a second Cloud project), its own key pair, a staging frontend URL, `npm run build:staging` so `window.__qa` exists, and `FRONTEND_ORIGIN` set to that staging origin. Do not reuse the production project or turn hooks on in the production build.
+QA staging wants its own LiveKit project, its own key pair, a preview URL, `npm run build:staging` so `window.__qa` exists, and `FRONTEND_ORIGIN` set to that origin. Do not reuse the production project or turn hooks on in the production build.
 
 ## Scripts
 
 ```bash
-npm test            # unit tests (zones, gain, pathfinding, QA flag)
-npm run typecheck
+npm test            # unit tests (zones, gain, pathfinding, QA flag, events, token gate)
+npm run typecheck   # frontend and api/
+npm run lint        # same checks as typecheck (no separate eslint config)
 npm run e2e -w frontend
+npm run load -w frontend   # 30-client load test. Needs ./scripts/run-livekit.sh. See docs/load-test-phase2.md
+./scripts/migrate.sh --dry-run    # list SQL migrations. See docs/staging-setup.md
+SMOKE_BASE_URL=http://127.0.0.1:5173 node scripts/smoke-staging.mjs
 ```

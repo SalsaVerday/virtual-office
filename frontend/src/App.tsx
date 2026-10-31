@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { createAuthProvider } from './auth'
-import { roomFromLocation } from './config'
-import { OfficeSession } from './net/session'
+import { roomFromLocation, sanitizeVariant } from './config'
+import type { OfficeSession } from './net/session'
+import { AdminScreen } from './ui/AdminScreen'
 import { JoinScreen, type JoinInput } from './ui/JoinScreen'
-import { OfficeScreen } from './ui/OfficeScreen'
+const OfficeScreen = lazy(() => import('./ui/OfficeScreen').then((mod) => ({ default: mod.OfficeScreen })))
 
 export function App() {
   const auth = useMemo(() => createAuthProvider(), [])
@@ -13,14 +14,26 @@ export function App() {
   const [initialName, setInitialName] = useState('')
   const [initialVariant, setInitialVariant] = useState('v00')
   const initialRoom = roomFromLocation(window.location.search)
+  const adminRoute = window.location.pathname === '/admin' || window.location.pathname === '/admin/'
 
   useEffect(() => {
+    if (adminRoute) return
     void auth.getSession().then((user) => {
-      if (!user) return
-      setInitialName(user.displayName)
-      setInitialVariant(user.variant)
+      if (user) {
+        setInitialName(user.displayName)
+        setInitialVariant(user.variant)
+        return
+      }
+      try {
+        const saved = localStorage.getItem('vo.variant')
+        if (saved) setInitialVariant(sanitizeVariant(saved))
+      } catch {
+        // Storage can be blocked. The default avatar still joins.
+      }
     })
-  }, [auth])
+  }, [auth, adminRoute])
+
+  if (adminRoute) return <AdminScreen />
 
   async function join(input: JoinInput) {
     const audio = new AudioContext()
@@ -29,7 +42,8 @@ export function App() {
     setError(null)
     try {
       const user = await auth.signIn({ displayName: input.displayName, variant: input.variant })
-      const office = new OfficeSession(user, audio)
+      const { OfficeSession: Session } = await import('./net/session')
+      const office = new Session(user, audio)
       await office.connect(input.room)
       const url = new URL(window.location.href)
       url.searchParams.set('room', input.room)
@@ -63,5 +77,9 @@ export function App() {
     )
   }
 
-  return <OfficeScreen session={session} onLeave={() => void leave()} />
+  return (
+    <Suspense fallback={<p className="hint" data-testid="office-loading">Opening the office…</p>}>
+      <OfficeScreen session={session} onLeave={() => void leave()} />
+    </Suspense>
+  )
 }

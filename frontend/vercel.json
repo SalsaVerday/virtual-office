@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "installCommand": "npm install",
+  "buildCommand": "if [ \"$VERCEL_ENV\" = \"production\" ]; then npm run build; else npm run build:staging; fi",
+  "functions": {
+    "api/**/*.ts": {
+      "maxDuration": 10
+    }
+  },
+  "rewrites": [
+    { "source": "/((?!api/|assets/).*)", "destination": "/index.html" }
+  ]
+}
