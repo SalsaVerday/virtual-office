@@ -1,8 +1,8 @@
 import { createHmac } from 'node:crypto'
 import { AccessToken } from 'livekit-server-sdk'
 import { afterEach, describe, expect, it } from 'vitest'
-import { usageUserId } from '../src/usage/devUserId.js'
-import { resetUsageRateLimit, usageResult, type UsageWrite } from './lib/usageResult.js'
+import { usageUserId } from '../../src/usage/devUserId.js'
+import { resetUsageRateLimit, usageResult, type UsageWrite } from '../_lib/usageResult.js'
 
 const ENV = {
   LIVEKIT_API_KEY: 'devkey',

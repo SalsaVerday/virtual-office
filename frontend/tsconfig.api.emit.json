@@ -7,6 +7,6 @@
     "declaration": false,
     "sourceMap": false
   },
-  "include": ["api/**/*.ts"],
-  "exclude": ["api/**/*.test.ts"]
+  "include": ["api/*.ts", "api/_lib/**/*.ts"],
+  "exclude": ["api/**/*.test.ts", "api/_tests/**/*.ts"]
 }

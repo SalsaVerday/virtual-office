@@ -1,8 +1,8 @@
 import { createHmac } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { resetDemoPasscodeLimiter } from './lib/passcode.js'
-import { tokenResult } from './lib/tokenResult.js'
-import { demoUserId } from '../src/usage/devUserId.js'
+import { resetDemoPasscodeLimiter } from '../_lib/passcode.js'
+import { tokenResult } from '../_lib/tokenResult.js'
+import { demoUserId } from '../../src/usage/devUserId.js'
 
 const DEV = {
   LIVEKIT_URL: 'ws://localhost:7880',

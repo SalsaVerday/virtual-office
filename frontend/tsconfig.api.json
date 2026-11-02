@@ -11,5 +11,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["api"]
+  "include": ["api/*.ts", "api/_lib/**/*.ts", "api/_tests/**/*.ts"]
 }

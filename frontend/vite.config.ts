@@ -51,12 +51,12 @@ function resolveApiJsSpecifier(): EsbuildPlugin {
 }
 
 async function loadApiModule(server: ApiHost): Promise<ApiModule> {
-  if (server.ssrLoadModule) return server.ssrLoadModule('/api/lib/http.ts')
+  if (server.ssrLoadModule) return server.ssrLoadModule('/api/_lib/http.ts')
   const cacheDir = path.join(server.config.root, 'node_modules/.cache')
   mkdirSync(cacheDir, { recursive: true })
   const outfile = path.join(cacheDir, 'preview-api.mjs')
   await build({
-    entryPoints: [path.join(server.config.root, 'api/lib/http.ts')],
+    entryPoints: [path.join(server.config.root, 'api/_lib/http.ts')],
     bundle: true,
     platform: 'node',
     format: 'esm',
