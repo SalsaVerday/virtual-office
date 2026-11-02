@@ -23,6 +23,7 @@ function applyServerEnv(mode: string, root: string): void {
 type ApiModule = {
   handleToken: (req: IncomingMessage, res: ServerResponse) => Promise<void>
   handleHealth: (req: IncomingMessage, res: ServerResponse) => void
+  handleUsage: (req: IncomingMessage, res: ServerResponse) => Promise<void>
 }
 
 type ApiHost = {
@@ -71,7 +72,7 @@ function attachApi(server: ApiHost): void {
   let loading: Promise<ApiModule> | null = null
   server.middlewares.use(async (req, res, next) => {
     const urlPath = (req.url ?? '').split('?')[0].replace(/\/$/, '') || '/'
-    if (urlPath !== '/api/token' && urlPath !== '/api/health') {
+    if (urlPath !== '/api/token' && urlPath !== '/api/health' && urlPath !== '/api/usage') {
       next()
       return
     }
@@ -79,6 +80,7 @@ function attachApi(server: ApiHost): void {
       loading ??= loadApiModule(server)
       const mod = await loading
       if (urlPath === '/api/health') mod.handleHealth(req, res)
+      else if (urlPath === '/api/usage') await mod.handleUsage(req, res)
       else await mod.handleToken(req, res)
     } catch (error) {
       loading = null

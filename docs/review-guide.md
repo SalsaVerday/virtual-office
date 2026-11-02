@@ -73,8 +73,9 @@ Retarget only after the parent is on `main`. Merging a child while its base is s
 - **QA hooks are not in the production build.** `qaHooksEnabled` returns false when `MODE === 'production'` before it looks at `VITE_QA_HOOKS` (`frontend/src/qa/enable.ts`). `npm run build` is production mode. `npm run build:staging` is staging mode, and `frontend/vercel.json` runs that only when `VERCEL_ENV` is not `production`. Demo preview builds keep the hooks so smoke can run. Production demo builds do not. See `docs/staging-setup.md`.
 - **The passcode stays on the server.** `DEMO_PASSCODE` is read only in `assertDemoPasscode`. The client posts what the user typed to `/api/token` and does not persist it (`demoAuth` writes `vo.session` without a passcode field). `VITE_DEMO_PASSCODE` fails the Vite build. Nothing in the client bundle should contain the configured value.
 - **Dev login is not the pitch path.** The pitch sets `AUTH_PROVIDER=demo` and `VITE_AUTH_PROVIDER=demo`. `AUTH_PROVIDER=azure` remains available. `ALLOW_DEV_LOGIN` is ignored on Production even if it is set, and it does not apply in demo mode.
-- **Service role key.** Only `scripts/smoke-staging.mjs` reads `SUPABASE_SERVICE_ROLE_KEY`, to select `usage_events`. It is not a `VITE_` variable, not in the browser bundle, and not required for the app. The database URI `SUPABASE_DB_URL` is the same: shell only, for `scripts/migrate.sh`.
-- **Anon usage writes (PR G).** Migration `20261031143000_dev_usage_uuid.sql` drops `users.id → auth.users` and lets the anon key insert users (`is_admin` must be false), sessions, usage events, and presence. That is what lets a staging dev-login (no Supabase JWT) insert a row. Anyone with the public anon key can insert those rows. They cannot set `is_admin`. Authenticated Azure users are still limited to `user_id = auth.uid()` by the earlier policies. Do not ship this migration to production until that tradeoff is accepted.
+- **Service role key.** `/api/usage` and `scripts/smoke-staging.mjs` read `SUPABASE_SERVICE_ROLE_KEY`. It is a Vercel server env var, not a `VITE_` variable, and not in the browser bundle. The database URI `SUPABASE_DB_URL` stays shell-only, for `scripts/migrate.sh`.
+- **Usage identity.** `/api/usage` verifies the LiveKit JWT from `/api/token` with `LIVEKIT_API_SECRET` and uses `sub`. A `user_id` in the body is ignored. `dev:` identities become the existing UUIDv5 before insert. Missing `SUPABASE_SERVICE_ROLE_KEY` is 503 `usage_unconfigured`. The client then keeps events locally and does not retry that configuration error.
+- **Anon usage writes.** `20261031143000_dev_usage_uuid.sql` let the anon key insert users, sessions, and usage events. That is what staging hit with 401/409. `supabase/migrations/20261102120000_usage_server_writes.sql` drops those insert/update policies and revokes the write grants. Select policies stay. Apply it after `/api/usage` is deployed. Until then the policies still exist, but the client no longer writes with the anon key.
 - **Admin.** `/admin` is unlinked. `canViewAdmin` needs `VITE_ADMIN=true` until a profile supplies `users.is_admin`.
 
 ## Env vars
@@ -83,11 +84,11 @@ Set in Vercel. Preview = staging. Production = the production domain. Values sta
 
 Demo deploy (no Entra). Full table in `docs/staging-setup.md`.
 
-- Server, on the Vercel scope you open (Preview and/or Production): `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `DEMO_PASSCODE`, `AUTH_PROVIDER=demo`, `FRONTEND_ORIGIN`
+- Server, on the Vercel scope you open (Preview and/or Production): `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `DEMO_PASSCODE`, `AUTH_PROVIDER=demo`, `FRONTEND_ORIGIN`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
 - Browser, same scope: `VITE_AUTH_PROVIDER=demo`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
 - Same Supabase URL also as `SUPABASE_URL` if you want the name on the server. The demo token route does not read it.
 - Not used for demo: `SUPABASE_JWT_SECRET`, `AZURE_TENANT_ID`, `ALLOW_DEV_LOGIN`
-- Shell only, never `VITE_`: `SUPABASE_DB_URL` (migrate), `SUPABASE_SERVICE_ROLE_KEY` (smoke only)
+- Shell only, never `VITE_`: `SUPABASE_DB_URL` (migrate). Smoke also reads `SUPABASE_SERVICE_ROLE_KEY` and, when the preview is protected, `VERCEL_PROTECTION_BYPASS` or `VERCEL_AUTOMATION_BYPASS_SECRET`
 - No Vercel token when the GitHub integration deploys. A token is only for the Vercel CLI or API.
 - Leave unset: `VITE_TOKEN_URL`, `VITE_QA_HOOKS`, `VITE_DEMO_PASSCODE`
 

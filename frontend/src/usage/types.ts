@@ -4,20 +4,23 @@ export type SessionEndReason = 'close' | 'timeout' | 'error'
 
 export type StatusSource = 'manual' | 'idle' | 'teams'
 
-export type UsageEventName =
-  | 'session_started'
-  | 'session_ended'
-  | 'join_attempted'
-  | 'join_succeeded'
-  | 'join_failed'
-  | 'status_changed'
-  | 'room_entered'
-  | 'room_left'
-  | 'conversation_started'
-  | 'conversation_ended'
-  | 'knock_sent'
-  | 'knock_answered'
-  | 'av_quality_sample'
+export const USAGE_EVENT_NAMES = [
+  'session_started',
+  'session_ended',
+  'join_attempted',
+  'join_succeeded',
+  'join_failed',
+  'status_changed',
+  'room_entered',
+  'room_left',
+  'conversation_started',
+  'conversation_ended',
+  'knock_sent',
+  'knock_answered',
+  'av_quality_sample',
+] as const
+
+export type UsageEventName = (typeof USAGE_EVENT_NAMES)[number]
 
 export type UsageEvent = {
   name: UsageEventName
@@ -28,6 +31,11 @@ export type UsageEvent = {
 }
 
 export interface UsageSink {
+  /**
+   * LiveKit access token from `/api/token`. `/api/usage` verifies it and
+   * ignores any user id the browser sends.
+   */
+  authorize?(livekitToken: string): void
   emit(event: UsageEvent): void
   /** Events currently in memory or localStorage. Synchronous, this browser only. */
   list(): UsageEvent[]

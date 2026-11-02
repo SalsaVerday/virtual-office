@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { frontendOrigins } from './config.js'
 import { ApiError } from './errors.js'
 import { tokenResult } from './tokenResult.js'
+import { usageResult } from './usageResult.js'
 
 type WithBody = IncomingMessage & { body?: unknown }
 
@@ -12,7 +13,7 @@ function headerValue(headers: IncomingMessage['headers'], name: string): string 
   return value
 }
 
-async function readBody(req: WithBody): Promise<unknown> {
+async function readBody(req: WithBody, maxBytes = 8_192): Promise<unknown> {
   if (Buffer.isBuffer(req.body)) {
     try {
       return JSON.parse(req.body.toString('utf8')) as unknown
@@ -33,7 +34,7 @@ async function readBody(req: WithBody): Promise<unknown> {
   for await (const chunk of req) {
     const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
     size += buf.length
-    if (size > 8_192) throw new ApiError('body too large', 413)
+    if (size > maxBytes) throw new ApiError('body too large', 413)
     chunks.push(buf)
   }
   if (chunks.length === 0) return {}
@@ -44,8 +45,8 @@ async function readBody(req: WithBody): Promise<unknown> {
   }
 }
 
-/** Hash the caller address. The raw IP is not stored and the passcode is not an input. */
-function clientKey(req: IncomingMessage): string {
+/** Hash the caller address. The raw IP is not stored. */
+export function callerKey(req: IncomingMessage): string {
   const forwarded = headerValue(req.headers, 'x-forwarded-for')
   const ip =
     forwarded?.split(',')[0]?.trim() ||
@@ -94,7 +95,7 @@ export async function handleToken(req: WithBody, res: ServerResponse, env: NodeJ
       authorization: headerValue(req.headers, 'authorization'),
       body,
       env,
-      clientKey: clientKey(req),
+      clientKey: callerKey(req),
     })
     send(res, result.status, result.json, { ...cors, ...result.headers })
   } catch (error) {
@@ -116,5 +117,30 @@ export function handleHealth(req: IncomingMessage, res: ServerResponse, env: Nod
     return
   }
   const configured = Boolean(env.LIVEKIT_URL?.trim() && env.LIVEKIT_API_KEY?.trim() && env.LIVEKIT_API_SECRET?.trim())
-  send(res, 200, { ok: true, livekitConfigured: configured }, cors)
+  const usageConfigured = Boolean(env.SUPABASE_URL?.trim() && env.SUPABASE_SERVICE_ROLE_KEY?.trim())
+  send(res, 200, { ok: true, livekitConfigured: configured, usageConfigured }, cors)
+}
+
+export async function handleUsage(req: WithBody, res: ServerResponse, env: NodeJS.ProcessEnv = process.env): Promise<void> {
+  const cors = corsHeaders(headerValue(req.headers, 'origin'), env)
+  if (req.method === 'OPTIONS') {
+    send(res, 204, {}, cors)
+    return
+  }
+  try {
+    const body = req.method === 'POST' ? await readBody(req, 65_536) : {}
+    const result = await usageResult({
+      method: req.method ?? 'GET',
+      authorization: headerValue(req.headers, 'authorization'),
+      body,
+      env,
+      clientKey: callerKey(req),
+    })
+    send(res, result.status, result.json, { ...cors, ...result.headers })
+  } catch (error) {
+    const status = error instanceof ApiError ? error.status : 500
+    const message = error instanceof ApiError ? error.message : 'usage service failed'
+    if (!(error instanceof ApiError)) console.error('usage service failed')
+    send(res, status, { error: message }, cors)
+  }
 }

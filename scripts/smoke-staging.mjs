@@ -11,11 +11,15 @@
  *      checks it and ignores the dev: identity.
  *   4. Two browsers join one room and each sees the other's position.
  *   5. The page sink recorded join_succeeded.
- *   6. If SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set, usage_events is readable.
- *      Dev-login writes a UUIDv5 of the dev: identity. A row is required only when
- *      SMOKE_REQUIRE_REMOTE_EVENT=1 (the preview must have the Supabase anon env).
+ *   6. POST /api/usage with the LiveKit token. 503 usage_unconfigured is accepted
+ *      when the server has no service role key. When SUPABASE_SERVICE_ROLE_KEY is
+ *      set, the posted row must show up in usage_events.
+ *   7. If SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set, the browser session
+ *      is also readable. A row is required only when SMOKE_REQUIRE_REMOTE_EVENT=1.
  *
- * The service role key is read from the environment and is never printed.
+ * VERCEL_PROTECTION_BYPASS or VERCEL_AUTOMATION_BYPASS_SECRET is sent as
+ * x-vercel-protection-bypass and is never printed. The service role key is
+ * read from the environment and is never printed.
  */
 import { chromium } from '@playwright/test'
 
@@ -29,6 +33,18 @@ const room = `smoke-${Date.now().toString(36)}`
 const failures = []
 /** Server-only. Included in the token body when set. Never printed. */
 const demoPasscode = process.env.DEMO_PASSCODE?.trim() ?? ''
+/** Deployment protection bypass. Never printed. */
+const protectionBypass = (
+  process.env.VERCEL_PROTECTION_BYPASS ||
+  process.env.VERCEL_AUTOMATION_BYPASS_SECRET ||
+  ''
+).trim()
+
+function appHeaders(extra = {}) {
+  const headers = { ...extra }
+  if (protectionBypass) headers['x-vercel-protection-bypass'] = protectionBypass
+  return headers
+}
 
 function check(name, ok, detail = '') {
   if (ok) {
@@ -40,17 +56,21 @@ function check(name, ok, detail = '') {
 }
 
 async function main() {
-  const pageResponse = await fetch(base)
+  const pageResponse = await fetch(base, { headers: appHeaders() })
   const html = await pageResponse.text()
   check('page loads', pageResponse.ok && html.includes('id="root"'), `status ${pageResponse.status}`)
 
-  const health = await fetch(`${base}/api/health`)
+  const health = await fetch(`${base}/api/health`, { headers: appHeaders() })
   const healthBody = await health.json().catch(() => ({}))
-  check('health', health.ok && healthBody.ok === true, `status ${health.status}`)
+  check(
+    'health',
+    health.ok && healthBody.ok === true && typeof healthBody.usageConfigured === 'boolean',
+    `status ${health.status}`,
+  )
 
   const closed = await fetch(`${base}/api/token`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: appHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({}),
   })
   const closedBody = await closed.json().catch(() => ({}))
@@ -69,7 +89,7 @@ async function main() {
   if (demoPasscode) openedPayload.passcode = demoPasscode
   const opened = await fetch(`${base}/api/token`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: appHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(openedPayload),
   })
   const openedBody = await opened.json().catch(() => ({}))
@@ -78,6 +98,8 @@ async function main() {
     opened.status === 200 && typeof openedBody.token === 'string' && openedBody.token.length > 0,
     `status ${opened.status} ${openedBody.error || ''}`,
   )
+
+  await checkUsage(openedBody.token)
 
   const browser = await chromium.launch({
     headless: true,
@@ -89,7 +111,14 @@ async function main() {
   })
   let sessionId = ''
   try {
-    const contexts = await Promise.all([0, 1].map(() => browser.newContext({ permissions: ['microphone'] })))
+    const contexts = await Promise.all([
+      0, 1,
+    ].map(() =>
+      browser.newContext({
+        permissions: ['microphone'],
+        extraHTTPHeaders: protectionBypass ? { 'x-vercel-protection-bypass': protectionBypass } : {},
+      }),
+    ))
     const pages = await Promise.all(contexts.map(async (context) => context.newPage()))
     await Promise.all(
       pages.map(async (page, index) => {
@@ -145,6 +174,62 @@ async function main() {
     process.exit(1)
   }
   console.log('\nsmoke passed')
+}
+
+async function checkUsage(token) {
+  if (typeof token !== 'string' || token.length === 0) {
+    check('usage accepts a verified token', false, 'no livekit token')
+    return
+  }
+  const sessionId = crypto.randomUUID()
+  const decoy = '00000000-0000-4000-8000-000000000099'
+  const posted = await fetch(`${base}/api/usage`, {
+    method: 'POST',
+    headers: appHeaders({
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    }),
+    body: JSON.stringify({
+      events: [
+        {
+          name: 'join_succeeded',
+          session_id: sessionId,
+          props: { smoke: true },
+          ts: new Date().toISOString(),
+          user_id: decoy,
+        },
+      ],
+    }),
+  })
+  const body = await posted.json().catch(() => ({}))
+  if (posted.status === 503 && body.error === 'usage_unconfigured') {
+    console.log('ok  usage route unconfigured (set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY on the server)')
+    return
+  }
+  check('usage accepts a verified token', posted.ok && body.ok === true, `status ${posted.status} ${body.error || ''}`)
+  const url = process.env.SUPABASE_URL?.trim()
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  if (!posted.ok || !url || !key) return
+  const endpoint = `${url.replace(/\/$/, '')}/rest/v1/usage_events?select=name,user_id,session_id&session_id=eq.${encodeURIComponent(sessionId)}`
+  let rows = []
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const response = await fetch(endpoint, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    })
+    if (!response.ok) {
+      check('usage event reached usage_events', false, `status ${response.status}`)
+      return
+    }
+    rows = await response.json().catch(() => [])
+    if (Array.isArray(rows) && rows.length > 0) break
+    await new Promise((resolve) => setTimeout(resolve, 300))
+  }
+  const row = Array.isArray(rows) ? rows[0] : null
+  check(
+    'usage event reached usage_events',
+    Boolean(row) && row.user_id !== decoy && row.session_id === sessionId,
+    row ? 'stored user id matched the client body' : 'no row for the posted session',
+  )
 }
 
 async function checkSupabase(sessionId) {

@@ -61,7 +61,7 @@ function walkRuntime(entry) {
   return seen
 }
 
-const entries = [path.join(root, 'api/health.ts'), path.join(root, 'api/token.ts')]
+const entries = [path.join(root, 'api/health.ts'), path.join(root, 'api/token.ts'), path.join(root, 'api/usage.ts')]
 const graph = new Set()
 for (const entry of entries) {
   for (const file of walkRuntime(entry)) graph.add(file)
@@ -101,7 +101,7 @@ for (const file of jsFiles(outDir)) {
   }
 }
 
-for (const name of ['health.js', 'token.js']) {
+for (const name of ['health.js', 'token.js', 'usage.js']) {
   const file = path.join(outDir, 'api', name)
   const loaded = await import(pathToFileURL(file).href)
   if (typeof loaded.default !== 'function') {
