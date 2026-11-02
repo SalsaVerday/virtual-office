@@ -19,7 +19,12 @@ export type UsageCall = {
   now?: number
 }
 
-export type UsageWrite = (env: NodeJS.ProcessEnv, userId: string, events: StoredUsageEvent[]) => Promise<void>
+export type UsageUser = {
+  id: string
+  displayName: string
+}
+
+export type UsageWrite = (env: NodeJS.ProcessEnv, user: UsageUser, events: StoredUsageEvent[]) => Promise<void>
 
 export type UsageResponse = {
   status: number
@@ -48,7 +53,8 @@ function allow(key: string, now: number): boolean {
 
 /**
  * Persist a batch for the identity inside the LiveKit access token.
- * A `user_id` on the event is never read.
+ * `user_id` and any display name on the body are never read. The name is the
+ * token's `name` claim.
  */
 export async function usageResult(call: UsageCall, write: UsageWrite = writeUsage): Promise<UsageResponse> {
   if (call.method === 'OPTIONS') return { status: 204, json: {} }
@@ -70,7 +76,7 @@ export async function usageResult(call: UsageCall, write: UsageWrite = writeUsag
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
       throw new ApiError('usage_invalid', 400)
     }
-    await write(call.env, userId, events)
+    await write(call.env, { id: userId, displayName: grant.name }, events)
     return { status: 200, json: { ok: true, accepted: events.length } }
   } catch (error) {
     if (error instanceof ApiError) {

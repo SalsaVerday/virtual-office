@@ -31,6 +31,7 @@ export async function issueToken(config: LiveKitConfig, input: IssueInput): Prom
 
   const token = new AccessToken(config.apiKey, config.apiSecret, {
     identity,
+    // JWT `name` claim. /api/usage copies it onto users.display_name.
     name,
     metadata: JSON.stringify({ variant }),
     ttl: '6h',
