@@ -17,11 +17,14 @@ function signJwt(payload: Record<string, unknown>, secret: string): string {
   return `${header}.${body}.${sig}`
 }
 
-function subject(token: unknown): string {
+function payloadOf(token: unknown): { sub?: string; name?: string } {
   expect(typeof token).toBe('string')
   const part = String(token).split('.')[1]
-  const payload = JSON.parse(Buffer.from(part, 'base64url').toString('utf8')) as { sub?: string }
-  return payload.sub ?? ''
+  return JSON.parse(Buffer.from(part, 'base64url').toString('utf8')) as { sub?: string; name?: string }
+}
+
+function subject(token: unknown): string {
+  return payloadOf(token).sub ?? ''
 }
 
 describe('/api/token', () => {
@@ -70,6 +73,7 @@ describe('/api/token', () => {
     expect(result.status).toBe(200)
     expect(result.json.url).toBe('ws://localhost:7880')
     expect(subject(result.json.token)).toBe('dev:ada')
+    expect(payloadOf(result.json.token).name).toBe('Ada')
   })
 
   it('derives Azure identity from the Supabase JWT, not the body', async () => {

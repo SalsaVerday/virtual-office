@@ -6,19 +6,30 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 type RowError = { message?: string } | null
 
+/** Update `display_name` when the same person joins again with a new name. */
+export const USER_UPSERT = { onConflict: 'id' } as const
+
+export function userRecord(id: string, displayName: string): { id: string; display_name: string } {
+  return { id, display_name: displayName }
+}
+
 /**
- * Service-role writes. The key stays in this process. `userId` is the uuid
- * derived from the verified LiveKit identity, never a field from the body.
+ * Service-role writes. The key stays in this process. `id` and `display_name`
+ * come from the verified LiveKit token, never from the body.
  */
-export async function writeUsage(env: NodeJS.ProcessEnv, userId: string, events: StoredUsageEvent[]): Promise<void> {
+export async function writeUsage(
+  env: NodeJS.ProcessEnv,
+  user: { id: string; displayName: string },
+  events: StoredUsageEvent[],
+): Promise<void> {
   const url = env.SUPABASE_URL?.trim() ?? ''
   const key = env.SUPABASE_SERVICE_ROLE_KEY?.trim() ?? ''
-  if (!url || !key || !UUID_RE.test(userId)) throw new ApiError('usage_unconfigured', 503)
+  if (!url || !key || !UUID_RE.test(user.id)) throw new ApiError('usage_unconfigured', 503)
   const supabase = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 
-  const userResult = await supabase.from('users').upsert({ id: userId }, { onConflict: 'id', ignoreDuplicates: true })
+  const userResult = await supabase.from('users').upsert(userRecord(user.id, user.displayName), USER_UPSERT)
   fail(key, userResult.error)
 
   const sessions = new Map<string, { started_at: string; client: string | null }>()
@@ -36,7 +47,7 @@ export async function writeUsage(env: NodeJS.ProcessEnv, userId: string, events:
   }
   const sessionRows = [...sessions.entries()].map(([id, row]) => ({
     id,
-    user_id: userId,
+    user_id: user.id,
     started_at: row.started_at,
     client: row.client,
   }))
@@ -45,7 +56,7 @@ export async function writeUsage(env: NodeJS.ProcessEnv, userId: string, events:
 
   const eventResult = await supabase.from('usage_events').insert(
     events.map((event) => ({
-      user_id: userId,
+      user_id: user.id,
       session_id: event.session_id,
       name: event.name,
       props: event.props,
@@ -56,7 +67,7 @@ export async function writeUsage(env: NodeJS.ProcessEnv, userId: string, events:
 
   for (const event of events) {
     if (event.name !== 'session_ended') continue
-    const ended = await supabase.from('sessions').update({ ended_at: event.ts }).eq('id', event.session_id).eq('user_id', userId)
+    const ended = await supabase.from('sessions').update({ ended_at: event.ts }).eq('id', event.session_id).eq('user_id', user.id)
     fail(key, ended.error)
   }
 }

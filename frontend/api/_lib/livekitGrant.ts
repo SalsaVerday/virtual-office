@@ -3,8 +3,20 @@ import { ApiError } from './errors.js'
 
 const SKEW_MS = 30_000
 
+/** Same cap as the join form. The token route stores this on the JWT `name` claim. */
+export const DISPLAY_NAME_MAX = 24
+
 export type LiveKitGrant = {
   identity: string
+  name: string
+}
+
+/** Trim, collapse whitespace, and cap. Empty is not a name. */
+export function displayNameFromClaim(value: unknown): string {
+  if (typeof value !== 'string') throw new ApiError('invalid token', 401)
+  const name = value.trim().replace(/\s+/g, ' ').slice(0, DISPLAY_NAME_MAX)
+  if (name.length < 1) throw new ApiError('invalid token', 401)
+  return name
 }
 
 function b64url(value: string): Buffer {
@@ -42,7 +54,7 @@ export function verifyLiveKitAccessToken(
   if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
     throw new ApiError('invalid token', 401)
   }
-  let payload: { iss?: unknown; sub?: unknown; exp?: unknown; nbf?: unknown }
+  let payload: { iss?: unknown; sub?: unknown; name?: unknown; exp?: unknown; nbf?: unknown }
   try {
     payload = JSON.parse(b64url(payloadPart).toString('utf8')) as typeof payload
   } catch {
@@ -58,5 +70,5 @@ export function verifyLiveKitAccessToken(
   if (typeof payload.nbf === 'number' && payload.nbf * 1000 - SKEW_MS > now) {
     throw new ApiError('invalid token', 401)
   }
-  return { identity: payload.sub }
+  return { identity: payload.sub, name: displayNameFromClaim(payload.name) }
 }
