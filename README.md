@@ -249,7 +249,7 @@ Live getters. Read them again each time; do not cache the object you got from `.
 
 ## Usage events
 
-`createEventSink()` writes every event to `localStorage` (`vo.events.v1`, capped at 1000). When `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are both set, it also inserts into `usage_events` (and stubs `users` / `sessions` / `presence`). A `dev:` identity is stored as a UUIDv5 of that string so the row fits `users.id`. The LiveKit identity stays `dev:…`. A failed Supabase write is logged and does not break the office.
+`createEventSink()` writes every event to `localStorage` (`vo.events.v1`, capped at 1000). After `/api/token` returns, the client batches the same events to `/api/usage` with that LiveKit token. The route verifies the token and writes `users`, `sessions`, and `usage_events` with `SUPABASE_SERVICE_ROLE_KEY`. A `dev:` identity is stored as a UUIDv5 of that string so the row fits `users.id`. The LiveKit identity stays `dev:…`. If the service role key is unset the route returns 503 `usage_unconfigured` and the office keeps the local copy.
 
 Events: `session_started`, `session_ended`, `join_attempted`, `join_succeeded`, `join_failed`, `status_changed`, `room_entered`, `room_left`, `conversation_started`, `conversation_ended`, `knock_sent`, `knock_answered`, `av_quality_sample`. A conversation is you plus at least one person in audio range. Duration is always stored. `props.counts` is true only when `duration_s` is at least 30. The participant with the lowest id emits the pair, so it is not stored twice. Audio quality is sampled every 30 seconds from LiveKit's WebRTC stats.
 
@@ -257,7 +257,7 @@ Apply `supabase/migrations/20261031120000_phase2_instrumentation.sql` when a Sup
 
 ## Deploying later
 
-Vercel project root is **`frontend`** (framework Vite). `frontend/api/token.ts` and `frontend/api/health.ts` deploy as serverless functions next to `frontend/dist`. `?room=` is a query string. `frontend/vercel.json` rewrites other paths to `index.html` and leaves `/api` and `/assets` alone.
+Vercel project root is **`frontend`** (framework Vite). `frontend/api/token.ts`, `frontend/api/usage.ts`, and `frontend/api/health.ts` deploy as serverless functions next to `frontend/dist`. `?room=` is a query string. `frontend/vercel.json` rewrites other paths to `index.html` and leaves `/api` and `/assets` alone.
 
 Do not put the LiveKit secret, a Supabase service role key, the JWT secret, or an Azure client secret in git or in a `VITE_` variable. With `AUTH_PROVIDER=dev` the token route still trusts the identity in the body. Use that on localhost and on the staging preview (with `ALLOW_DEV_LOGIN=true` if the server flag is already `azure`). Set `AUTH_PROVIDER=azure` before the production URL is public. See `docs/auth-plan.md`.
 

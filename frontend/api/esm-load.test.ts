@@ -13,5 +13,6 @@ describe('compiled api esm', () => {
     })
     expect(output).toMatch(/ok\s+node import health\.js/)
     expect(output).toMatch(/ok\s+node import token\.js/)
+    expect(output).toMatch(/ok\s+node import usage\.js/)
   })
 })

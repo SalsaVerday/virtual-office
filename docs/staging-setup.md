@@ -1,6 +1,6 @@
 # Staging setup
 
-Vercel project root is **`frontend`**. Preview deployments run `npm run build:staging` (QA hooks on). Production runs `npm run build` (hooks off). `/api/token` and `/api/health` are the functions next to the Vite app. `/api` and `/assets` are not rewritten; every other path serves `index.html`.
+Vercel project root is **`frontend`**. Preview deployments run `npm run build:staging` (QA hooks on). Production runs `npm run build` (hooks off). `/api/token`, `/api/usage`, and `/api/health` are the functions next to the Vite app. `/api` and `/assets` are not rewritten; every other path serves `index.html`.
 
 Do not put secrets in git. Names below are the env var names. Values are created in the consoles and pasted into Vercel or your shell.
 
@@ -23,8 +23,9 @@ Skip step 1 (the Entra app registration). Skip the Supabase Azure provider and t
 | LiveKit WebSocket URL | `LIVEKIT_URL` | Vercel | Preview, and Production if the pitch URL is the production domain |
 | LiveKit API key | `LIVEKIT_API_KEY` | Vercel | Same scope as the URL |
 | LiveKit API secret | `LIVEKIT_API_SECRET` | Vercel. 32+ characters. Not the dev secret `secret` | Same scope |
-| Supabase project URL | `SUPABASE_URL` and `VITE_SUPABASE_URL` (the same value) | Vercel. The browser sink reads the `VITE_` copy | Same scope |
-| Supabase anon key | `VITE_SUPABASE_ANON_KEY` | Vercel. Public by design. Usage inserts use it | Same scope |
+| Supabase project URL | `SUPABASE_URL` and `VITE_SUPABASE_URL` (the same value) | Vercel. `SUPABASE_URL` is what `/api/usage` writes to. The browser reads with the `VITE_` copy | Same scope |
+| Supabase anon key | `VITE_SUPABASE_ANON_KEY` | Vercel. Public by design. Admin reads only. The browser does not insert usage rows | Same scope |
+| Supabase service role key | `SUPABASE_SERVICE_ROLE_KEY` | Vercel, server only. Never `VITE_`. `/api/usage` upserts `users` and `sessions` and inserts `usage_events`. Empty: the route returns 503 `usage_unconfigured` and the client keeps events locally | Same scope |
 | Supabase JWT secret | `SUPABASE_JWT_SECRET` | Not used while `AUTH_PROVIDER=demo`. Set it only when you switch to `azure` | — |
 | Database URI | `SUPABASE_DB_URL` | Shell only, for `./scripts/migrate.sh`. Not a Vercel variable. Contains the database password | Your laptop or CI |
 | Shared passcode | `DEMO_PASSCODE` | Vercel, server only. Never `VITE_`. Empty or unset: `/api/token` returns 503 `demo_passcode_unconfigured` and no token | Same scope as LiveKit |
@@ -38,7 +39,7 @@ Skip step 1 (the Entra app registration). Skip the Supabase Azure provider and t
 - `VITE_AUTH_PROVIDER=demo` on the same scope. This only shows the passcode field. It must not contain the passcode. Do not create `VITE_DEMO_PASSCODE` (the build refuses it).
 - `FRONTEND_ORIGIN` on the same scope. Set it to the deployment origin after the first deploy (comma-separate if there are several), then redeploy.
 - `VITE_ADMIN=true` only if this URL should open `/admin`. Leave it unset otherwise.
-- `SUPABASE_SERVICE_ROLE_KEY` only in the shell, and only if the smoke script should poll `usage_events`. The app does not need it. Never `VITE_`.
+- `SUPABASE_SERVICE_ROLE_KEY` is in the table above. It is also what the smoke script uses to read `usage_events` back. Never `VITE_`.
 
 ### Not required for this path
 
@@ -64,6 +65,10 @@ DEMO_PASSCODE='<the same value as Vercel>' \
 SMOKE_BASE_URL=https://<host> \
 node scripts/smoke-staging.mjs
 ```
+
+If the preview is behind Vercel Deployment Protection, set `VERCEL_PROTECTION_BYPASS` or `VERCEL_AUTOMATION_BYPASS_SECRET` in the shell. The smoke script sends it as `x-vercel-protection-bypass` and does not print it. That value is not an app env var.
+
+`/api/usage` checks the LiveKit access token from `/api/token` (HS256, `LIVEKIT_API_SECRET`, `sub` is the identity). It does not trust a user id in the JSON body. Apply `supabase/migrations/20261102120000_usage_server_writes.sql` after this change is reviewed. That file drops the anon and authenticated insert/update policies on `users`, `sessions`, and `usage_events`. Select policies stay. Do not apply it before the new route is deployed, or the old client writes stop and the new ones are not up yet. `scripts/migrate.sh` will apply it with the other migrations when you run it.
 
 The fail-closed check posts an empty body and must not receive a token. The success check sends `DEMO_PASSCODE` only when that variable is set. On a demo deployment, set it to the same value as Vercel or the success check fails with `bad_passcode`.
 
@@ -145,6 +150,7 @@ Console: [vercel.com](https://vercel.com) → **Add New → Project** → import
 | `VITE_SUPABASE_URL` | Staging project URL | Production project URL |
 | `VITE_SUPABASE_ANON_KEY` | Staging anon key | Production anon key |
 | `SUPABASE_URL` | Same as `VITE_SUPABASE_URL` | Same |
+| `SUPABASE_SERVICE_ROLE_KEY` | Staging service role. Server only. Never `VITE_` | Production service role |
 | `SUPABASE_JWT_SECRET` | Staging JWT secret | Production JWT secret |
 | `AZURE_TENANT_ID` | Directory (tenant) ID | Same tenant, unless production is a different directory |
 | `VITE_ADMIN` | `true` only if this preview should open `/admin` | Leave unset until `users.is_admin` is wired |
@@ -172,4 +178,4 @@ SMOKE_BASE_URL=https://<preview-host> \
 node scripts/smoke-staging.mjs
 ```
 
-The service role key bypasses RLS. It is not a `VITE_` variable and it is not required for the app to run. See `scripts/smoke-staging.mjs` for what each check asserts. Dev-login events are stored under a UUIDv5 of the `dev:` identity. Set `SMOKE_REQUIRE_REMOTE_EVENT=1` when the preview has `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` and you want a missing `usage_events` row to fail the script. Apply `20261031143000_dev_usage_uuid.sql` first or the insert has no place to land.
+`SUPABASE_SERVICE_ROLE_KEY` bypasses RLS. Set it on the Vercel server (never `VITE_`) so `/api/usage` can write. The smoke script reads the same variable to confirm the posted row. It is not in the browser bundle. Dev-login events are stored under a UUIDv5 of the `dev:` identity. Set `SMOKE_REQUIRE_REMOTE_EVENT=1` when you want a missing browser-session row to fail the script. Apply `20261031143000_dev_usage_uuid.sql` before `20261102120000_usage_server_writes.sql`.

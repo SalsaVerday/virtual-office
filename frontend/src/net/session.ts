@@ -497,6 +497,7 @@ export class OfficeSession {
     }
     const body = (await response.json()) as { token?: string; url?: string }
     if (!body.token || !body.url) throw new Error('Token service returned an incomplete response')
+    this.usage.authorize?.(body.token)
     return { token: body.token, url: body.url }
   }
 
