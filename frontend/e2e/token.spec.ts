@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { tokenResult } from '../api/lib/tokenResult'
+import { tokenResult } from '../api/_lib/tokenResult'
 
 test('/api/token fails closed without LiveKit env', async ({ request }) => {
   const missing = await tokenResult({

@@ -26,7 +26,7 @@ Retarget only after the parent is on `main`. Merging a child while its base is s
 
 - **#2 Token route, status, knock, local events.** `/api/token` is the only server path. It must fail closed.
   - Risk: minting a token with no LiveKit secret, or trusting the body on the public internet.
-  - Look: `frontend/api/lib/tokenResult.ts` `tokenResult`. `frontend/api/lib/config.ts` `loadLiveKitConfig` refuses the dev secret when `NODE_ENV` or `VERCEL_ENV` is `production`. `frontend/api/lib/gate.ts` `resolveIdentity`.
+  - Look: `frontend/api/_lib/tokenResult.ts` `tokenResult`. `frontend/api/_lib/config.ts` `loadLiveKitConfig` refuses the dev secret when `NODE_ENV` or `VERCEL_ENV` is `production`. `frontend/api/_lib/gate.ts` `resolveIdentity`.
 
 - **#3 Load test and selective subscribe.** 30 clients. Subscribe only while audible.
   - Risk: still subscribed to every mic, or dropping someone you should hear.
@@ -58,7 +58,7 @@ Retarget only after the parent is on `main`. Merging a child while its base is s
 
 - **Demo passcode.** `AUTH_PROVIDER=demo`. The join form sends a name and a shared passcode. `/api/token` checks the passcode. Azure still works when `AUTH_PROVIDER=azure`.
   - Risk: the passcode shipped in the client bundle, logged, or compared in a way that leaks it. Or an empty `DEMO_PASSCODE` still minting a token.
-  - Look: `frontend/api/lib/passcode.ts` `assertDemoPasscode` (around line 83) and `passcodesMatch`. `frontend/api/lib/gate.ts` `resolveIdentity` demo branch (around line 124). `frontend/src/auth/demoAuth.ts` (storage omits the passcode). `frontend/src/ui/JoinScreen.tsx` `passcode-input`.
+  - Look: `frontend/api/_lib/passcode.ts` `assertDemoPasscode` (around line 83) and `passcodesMatch`. `frontend/api/_lib/gate.ts` `resolveIdentity` demo branch (around line 124). `frontend/src/auth/demoAuth.ts` (storage omits the passcode). `frontend/src/ui/JoinScreen.tsx` `passcode-input`.
 
 ## Security
 

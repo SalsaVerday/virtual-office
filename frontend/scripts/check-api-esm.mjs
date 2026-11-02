@@ -61,6 +61,34 @@ function walkRuntime(entry) {
   return seen
 }
 
+const FUNCTION_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'])
+const MAX_SERVERLESS_FUNCTIONS = 12
+
+/** Vercel deploys every non-underscore file under api/ as a function. Folders and files whose names start with `_` are ignored. */
+function serverlessFunctions(dir, rel = 'api') {
+  const found = []
+  for (const name of readdirSync(dir)) {
+    if (name.startsWith('_') || name.startsWith('.')) continue
+    const full = path.join(dir, name)
+    const child = `${rel}/${name}`
+    if (statSync(full).isDirectory()) {
+      found.push(...serverlessFunctions(full, child))
+      continue
+    }
+    if (FUNCTION_EXTENSIONS.has(path.extname(name))) found.push(child)
+  }
+  return found.sort()
+}
+
+const functions = serverlessFunctions(path.join(root, 'api'))
+console.log(`serverless functions: ${functions.length}`)
+for (const file of functions) console.log(`endpoint ${file}`)
+if (functions.length > MAX_SERVERLESS_FUNCTIONS) {
+  throw new Error(
+    `Vercel Hobby allows ${MAX_SERVERLESS_FUNCTIONS} serverless functions per deployment; api/ would deploy ${functions.length}: ${functions.join(', ')}`,
+  )
+}
+
 const entries = [path.join(root, 'api/health.ts'), path.join(root, 'api/token.ts'), path.join(root, 'api/usage.ts')]
 const graph = new Set()
 for (const entry of entries) {
